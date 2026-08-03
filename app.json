@@ -1,0 +1,61 @@
+{
+  "expo": {
+    "name": "Detecção de EPI",
+    "slug": "detecao-de-epi-fetin",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "epifetin",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.fetin.detecaodeepi",
+      "infoPlist": {
+        "NSCameraUsageDescription": "O aplicativo usa a câmera para verificar se os equipamentos de proteção individual estão sendo utilizados.",
+        "NSPhotoLibraryUsageDescription": "O aplicativo acessa suas fotos para analisar uma imagem já existente."
+      }
+    },
+    "android": {
+      "package": "com.fetin.detecaodeepi",
+      "adaptiveIcon": {
+        "backgroundColor": "#1D4ED8",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      [
+        "expo-router",
+        {
+          "root": "./src/app"
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "O aplicativo usa a câmera para verificar os equipamentos de proteção individual."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "O aplicativo acessa suas fotos para analisar uma imagem já existente."
+        }
+      ],
+      "expo-asset",
+      "expo-font"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
