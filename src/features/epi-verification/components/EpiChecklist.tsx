@@ -1,9 +1,10 @@
 import clsx from 'clsx';
-import { CheckCircle2, LoaderCircle, ShieldCheck, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle2, LoaderCircle, ShieldCheck, XCircle } from 'lucide-react';
 
 import { ProgressBar } from '@/components/ui';
 import { getEpiById } from '@/constants/epiCatalog';
 import { APP_MESSAGES } from '@/constants/messages';
+import { VERIFICATION_THRESHOLDS } from '@/constants/verification';
 import { formatConfidence } from '@/utils';
 
 import type { DetectedEpi, EpiId } from '../types';
@@ -36,24 +37,29 @@ export const EpiChecklist = ({
       const isScanning = item.id === currentItem;
       const isDetected = item.detected;
       const isMissing = !isDetected && finished;
+      // Reconhecido, mas com confiança que não basta para liberar sem revisão.
+      const isLowConfidence = isDetected && item.confidence < VERIFICATION_THRESHOLDS.lowConfidence;
 
       const catalogItem = getEpiById(item.id);
       const Icon = catalogItem?.icon ?? ShieldCheck;
 
       const stateLabel = isScanning
         ? APP_MESSAGES.scan.analyzing
-        : isDetected
-          ? APP_MESSAGES.scan.detected
-          : finished
-            ? APP_MESSAGES.scan.notDetected
-            : APP_MESSAGES.scan.waiting;
+        : isLowConfidence
+          ? APP_MESSAGES.scan.detectedLowConfidence
+          : isDetected
+            ? APP_MESSAGES.scan.detected
+            : finished
+              ? APP_MESSAGES.scan.notDetected
+              : APP_MESSAGES.scan.waiting;
 
       return (
         <li
           key={item.id}
           className={clsx(
             styles.item,
-            isDetected && styles.detected,
+            isDetected && !isLowConfidence && styles.detected,
+            isLowConfidence && styles.lowConfidence,
             isMissing && styles.missing,
             isScanning && styles.scanning,
           )}
@@ -67,6 +73,8 @@ export const EpiChecklist = ({
               <span className={styles.label}>{item.label}</span>
               {isScanning ? (
                 <LoaderCircle size={16} className={styles.spinner} aria-hidden="true" />
+              ) : isLowConfidence ? (
+                <AlertCircle size={16} color="var(--color-warning-dark)" aria-hidden="true" />
               ) : isDetected ? (
                 <CheckCircle2 size={16} color="var(--color-approved)" aria-hidden="true" />
               ) : finished ? (
@@ -79,7 +87,15 @@ export const EpiChecklist = ({
             <div className={styles.confidenceRow}>
               <ProgressBar
                 value={item.confidence}
-                tone={isDetected ? 'approved' : isMissing ? 'rejected' : 'primary'}
+                tone={
+                  isLowConfidence
+                    ? 'warning'
+                    : isDetected
+                      ? 'approved'
+                      : isMissing
+                        ? 'rejected'
+                        : 'primary'
+                }
                 height={5}
                 onDark={onDark}
                 label={`Confiança de ${item.label}`}

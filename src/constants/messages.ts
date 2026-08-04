@@ -45,6 +45,7 @@ export const APP_MESSAGES = {
     analyzing: 'Analisando',
     waiting: 'Aguardando',
     detected: 'Detectado',
+    detectedLowConfidence: 'Detectado com baixa confiança',
     notDetected: 'Não detectado',
     cancelled: 'Verificação interrompida',
     cancelledDescription: 'A verificação foi cancelada antes de terminar.',

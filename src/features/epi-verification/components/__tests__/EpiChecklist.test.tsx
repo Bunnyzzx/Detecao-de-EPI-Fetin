@@ -20,6 +20,14 @@ describe('EpiChecklist', () => {
     expect(screen.getByText('97%')).toBeInTheDocument();
   });
 
+  it('distingue detectado com baixa confiança de detectado normal', () => {
+    render(<EpiChecklist items={[{ ...capacete, confidence: 0.65 }]} />);
+
+    expect(
+      screen.getByText('Detectado com baixa confiança · Proteção da cabeça'),
+    ).toBeInTheDocument();
+  });
+
   it('indica quando o equipamento não foi detectado ao final', () => {
     render(<EpiChecklist items={[{ ...capacete, detected: false, confidence: 0.2 }]} />);
 

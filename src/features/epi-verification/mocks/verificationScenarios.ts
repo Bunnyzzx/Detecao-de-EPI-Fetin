@@ -14,18 +14,19 @@ export interface VerificationScenario {
   confidenceFactor: number;
 }
 
+/**
+ * Os pesos refletem a realidade de um terminal de entrada: a maioria das
+ * pessoas chega com todos os equipamentos. Com esta distribuição, cerca de
+ * 60% das verificações liberam o acesso, 20% pedem atenção e 20% reprovam —
+ * o suficiente para demonstrar os três resultados sem passar a impressão de
+ * que o sistema reprova todo mundo.
+ */
 export const VERIFICATION_SCENARIOS: readonly VerificationScenario[] = [
   {
     name: 'conformidade-total',
-    weight: 5,
+    weight: 12,
     undetected: [],
     confidenceFactor: 1,
-  },
-  {
-    name: 'confianca-baixa',
-    weight: 2,
-    undetected: [],
-    confidenceFactor: 0.7,
   },
   {
     name: 'falta-oculos',
@@ -40,8 +41,14 @@ export const VERIFICATION_SCENARIOS: readonly VerificationScenario[] = [
     confidenceFactor: 0.94,
   },
   {
+    name: 'confianca-baixa',
+    weight: 1,
+    undetected: [],
+    confidenceFactor: 0.7,
+  },
+  {
     name: 'sem-capacete-e-colete',
-    weight: 2,
+    weight: 1,
     undetected: ['capacete', 'colete'],
     confidenceFactor: 0.92,
   },
