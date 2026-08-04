@@ -1,0 +1,82 @@
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.title {
+  font-size: var(--font-size-title);
+  font-weight: 700;
+}
+
+.confidenceHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-sm);
+  font-size: var(--font-size-caption);
+  font-weight: 600;
+  color: var(--color-slate-600);
+}
+
+.metrics {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+}
+
+.metric {
+  flex: 1;
+  text-align: center;
+}
+
+.metricValue {
+  font-size: var(--font-size-title);
+  font-weight: 700;
+}
+
+.metricLabel {
+  font-size: var(--font-size-micro);
+  color: var(--color-slate-500);
+}
+
+.detectedValue {
+  color: var(--color-approved-text);
+}
+
+.missingValue {
+  color: var(--color-rejected-text);
+}
+
+.durationValue {
+  font-size: var(--font-size-subheading);
+  color: var(--color-slate-700);
+}
+
+.divider {
+  width: 1px;
+  height: 2.125rem;
+  background-color: var(--color-slate-200);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--color-slate-100);
+}
+
+.footerLabel {
+  font-size: var(--font-size-micro);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-slate-400);
+}
+
+.footerValue {
+  font-size: var(--font-size-caption);
+  font-weight: 700;
+  color: var(--color-slate-800);
+}

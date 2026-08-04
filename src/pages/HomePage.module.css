@@ -1,0 +1,132 @@
+.layout {
+  display: grid;
+  grid-template-columns: minmax(20rem, 38%) 1fr;
+  height: 100%;
+}
+
+.hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-lg);
+  padding: var(--space-4xl) var(--space-3xl);
+  overflow: hidden;
+  background-image: linear-gradient(135deg, var(--color-primary-dark), var(--color-primary-deep));
+  color: var(--color-white);
+  text-align: center;
+}
+
+.heroDecoration {
+  position: absolute;
+  border-radius: var(--radius-pill);
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.heroDecorationBottom {
+  bottom: -5rem;
+  left: -5rem;
+  width: 18rem;
+  height: 18rem;
+}
+
+.heroDecorationTop {
+  top: -4rem;
+  right: -4rem;
+  width: 14rem;
+  height: 14rem;
+}
+
+.heroTopRow {
+  position: absolute;
+  top: var(--space-2xl);
+  left: var(--space-2xl);
+  right: var(--space-2xl);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-lg);
+}
+
+.emblem {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 7rem;
+  height: 7rem;
+  border: 2px solid rgba(255, 255, 255, 0.28);
+  border-radius: var(--radius-pill);
+  background-color: rgba(255, 255, 255, 0.14);
+}
+
+.heroTitle {
+  font-size: var(--font-size-hero);
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.heroSubtitle {
+  max-width: 22rem;
+  color: var(--color-primary-on);
+  line-height: 1.6;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-2xl);
+  padding: var(--space-4xl) var(--space-5xl);
+  overflow-y: auto;
+  background-color: var(--color-white);
+}
+
+.panelInner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xl);
+  width: 100%;
+  max-width: 40rem;
+  margin-inline: auto;
+}
+
+.readyTitle {
+  font-size: var(--font-size-display);
+  font-weight: 700;
+  color: var(--color-slate-900);
+}
+
+.readyDescription {
+  margin-top: var(--space-sm);
+  color: var(--color-slate-500);
+  line-height: 1.6;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.startHint {
+  font-size: var(--font-size-caption);
+  color: var(--color-slate-400);
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+    overflow-y: auto;
+  }
+
+  .hero {
+    padding-top: var(--space-5xl);
+  }
+
+  .panel {
+    padding: var(--space-3xl) var(--space-2xl);
+  }
+}

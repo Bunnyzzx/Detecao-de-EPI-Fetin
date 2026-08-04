@@ -5,7 +5,7 @@ const hoursAgo = (hours: number): string =>
 
 /**
  * Operadores de exemplo, os mesmos exibidos no protótipo. Servem apenas para
- * popular a lista na primeira execução; tudo é editável e local ao aparelho.
+ * popular a lista na primeira execução; tudo é editável e local ao terminal.
  */
 export const SEED_USERS: readonly AdminUser[] = [
   {

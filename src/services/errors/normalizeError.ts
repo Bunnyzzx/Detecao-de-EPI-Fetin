@@ -15,9 +15,12 @@ export const normalizeError = (
 
   if (error instanceof Error) {
     if (error.name === 'AbortError') {
+      return new AppError('cancelled', error.message || FALLBACK_MESSAGE, error);
+    }
+    if (error.name === 'TimeoutError') {
       return new AppError('timeout', error.message || FALLBACK_MESSAGE, error);
     }
-    if (/network request failed|failed to fetch/i.test(error.message)) {
+    if (/failed to fetch|network/i.test(error.message)) {
       return new AppError('network', error.message, error);
     }
     return new AppError(fallbackCode, error.message || FALLBACK_MESSAGE, error);
@@ -26,9 +29,11 @@ export const normalizeError = (
   return new AppError(fallbackCode, FALLBACK_MESSAGE, error);
 };
 
-interface ErrorPresentation {
+export interface ErrorPresentation {
   title: string;
   description: string;
+  /** Verdadeiro quando a causa é conectividade, para escolher outro ícone. */
+  isConnectivity: boolean;
 }
 
 /** Título e descrição prontos para exibição, derivados do código do erro. */
@@ -41,26 +46,25 @@ export const describeError = (error: unknown): ErrorPresentation => {
       return {
         title: APP_MESSAGES.states.offlineTitle,
         description: APP_MESSAGES.states.offlineDescription,
+        isConnectivity: true,
       };
-    case 'invalid_image':
+    case 'cancelled':
       return {
-        title: APP_MESSAGES.preview.invalidImageTitle,
-        description: APP_MESSAGES.preview.invalidImageDescription,
+        title: APP_MESSAGES.scan.cancelled,
+        description: APP_MESSAGES.scan.cancelledDescription,
+        isConnectivity: false,
       };
-    case 'device_unsupported':
+    case 'no_active_epis':
       return {
-        title: APP_MESSAGES.camera.unavailableTitle,
-        description: APP_MESSAGES.camera.unavailableDescription,
-      };
-    case 'permission_denied':
-      return {
-        title: APP_MESSAGES.camera.permissionDeniedTitle,
-        description: APP_MESSAGES.camera.permissionDeniedDescription,
+        title: APP_MESSAGES.home.noEquipmentTitle,
+        description: APP_MESSAGES.home.noEquipmentDescription,
+        isConnectivity: false,
       };
     default:
       return {
         title: APP_MESSAGES.states.genericErrorTitle,
         description: APP_MESSAGES.states.genericErrorDescription,
+        isConnectivity: false,
       };
   }
 };

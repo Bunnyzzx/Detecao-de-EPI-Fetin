@@ -1,0 +1,29 @@
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  border-radius: var(--radius-lg);
+  font-size: var(--font-size-caption);
+  line-height: 1.5;
+}
+
+.icon {
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+.neutral {
+  background-color: var(--color-slate-100);
+  color: var(--color-slate-600);
+}
+
+.info {
+  background-color: var(--color-primary-soft);
+  color: var(--color-primary-dark);
+}
+
+.warning {
+  background-color: var(--color-warning-soft);
+  color: var(--color-warning-text);
+}

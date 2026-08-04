@@ -1,5 +1,5 @@
 /**
- * Acesso único às variáveis de ambiente públicas do Expo.
+ * Acesso único às variáveis de ambiente.
  * Nenhuma URL, chave ou token é escrito diretamente no código.
  */
 const readString = (value: string | undefined): string | undefined => {
@@ -13,9 +13,10 @@ const readNumber = (value: string | undefined, fallback: number): number => {
 };
 
 export const env = {
-  epiApiUrl: readString(process.env.EXPO_PUBLIC_EPI_API_URL),
-  epiApiTimeoutMs: readNumber(process.env.EXPO_PUBLIC_EPI_API_TIMEOUT_MS, 20000),
+  epiApiUrl: readString(import.meta.env.VITE_EPI_API_URL),
+  epiApiTimeoutMs: readNumber(import.meta.env.VITE_EPI_API_TIMEOUT_MS, 20000),
+  terminalResetSeconds: readNumber(import.meta.env.VITE_TERMINAL_RESET_SECONDS, 20),
 } as const;
 
-/** Enquanto a URL não for configurada, o app opera em modo simulado. */
+/** Enquanto a URL não for configurada, o terminal opera em modo simulado. */
 export const isApiConfigured = (): boolean => Boolean(env.epiApiUrl);

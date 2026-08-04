@@ -1,5 +1,3 @@
-import { delay } from '@/utils';
-
 import type { AdminCredentials } from '../types';
 
 /**
@@ -11,10 +9,11 @@ import type { AdminCredentials } from '../types';
  */
 const DEMO_USERNAME = 'admin';
 const DEMO_PASSWORD = 'admin';
+const SIMULATED_LATENCY_MS = 500;
 
 export const adminAuthService = {
   async signIn({ username, password }: AdminCredentials): Promise<boolean> {
-    await delay(600);
+    await new Promise((resolve) => setTimeout(resolve, SIMULATED_LATENCY_MS));
     return username.trim().toLowerCase() === DEMO_USERNAME && password === DEMO_PASSWORD;
   },
 };

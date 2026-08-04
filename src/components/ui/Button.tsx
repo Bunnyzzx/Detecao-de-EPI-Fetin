@@ -1,167 +1,63 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  View,
-  type PressableProps,
-  type StyleProp,
-  type ViewStyle,
-} from 'react-native';
+import clsx from 'clsx';
+import { LoaderCircle, type LucideIcon } from 'lucide-react';
+import type { ButtonHTMLAttributes, ReactNode } from 'react';
 
-import type { MaterialCommunityIconName } from '@/features/epi-detection/types';
-import { colors, radii, shadows, spacing, MIN_TOUCH_TARGET } from '@/theme';
-
-import { Text } from './Text';
+import styles from './Button.module.css';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'success' | 'danger' | 'dark';
 export type ButtonSize = 'medium' | 'large';
 
-export interface ButtonProps extends Omit<PressableProps, 'style' | 'children'> {
+export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
   label: string;
   variant?: ButtonVariant;
   size?: ButtonSize;
-  icon?: MaterialCommunityIconName;
+  icon?: LucideIcon;
   iconPosition?: 'left' | 'right';
   loading?: boolean;
   fullWidth?: boolean;
-  style?: StyleProp<ViewStyle>;
+  /** Conteúdo extra à direita do rótulo, como uma contagem regressiva. */
+  trailing?: ReactNode;
 }
-
-interface VariantStyle {
-  background: string;
-  pressedBackground: string;
-  foreground: string;
-  border?: string;
-  shadow?: ViewStyle;
-}
-
-const VARIANTS: Record<ButtonVariant, VariantStyle> = {
-  primary: {
-    background: colors.primary,
-    pressedBackground: colors.primaryDark,
-    foreground: colors.white,
-    shadow: shadows.primary,
-  },
-  secondary: {
-    background: colors.white,
-    pressedBackground: colors.slate[100],
-    foreground: colors.slate[800],
-    border: colors.slate[200],
-  },
-  ghost: {
-    background: colors.transparent,
-    pressedBackground: colors.slate[100],
-    foreground: colors.primary,
-  },
-  success: {
-    background: colors.status.approved,
-    pressedBackground: colors.status.approvedDark,
-    foreground: colors.white,
-    shadow: shadows.approved,
-  },
-  danger: {
-    background: colors.status.rejected,
-    pressedBackground: colors.status.rejectedDark,
-    foreground: colors.white,
-  },
-  dark: {
-    background: colors.slate[900],
-    pressedBackground: colors.slate[800],
-    foreground: colors.white,
-  },
-};
 
 export const Button = ({
   label,
   variant = 'primary',
   size = 'medium',
-  icon,
+  icon: Icon,
   iconPosition = 'left',
   loading = false,
-  fullWidth = true,
+  fullWidth = false,
+  trailing,
+  className,
   disabled,
-  style,
-  accessibilityLabel,
+  type = 'button',
   ...rest
 }: ButtonProps) => {
-  const palette = VARIANTS[variant];
-  const isInteractionBlocked = Boolean(disabled) || loading;
-  const iconElement = icon ? (
-    <MaterialCommunityIcons
-      name={icon}
-      size={size === 'large' ? 22 : 20}
-      color={palette.foreground}
-    />
-  ) : null;
+  const isBlocked = Boolean(disabled) || loading;
+  const iconSize = size === 'large' ? 22 : 18;
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityState={{ disabled: isInteractionBlocked, busy: loading }}
-      disabled={isInteractionBlocked}
-      style={({ pressed }) => [
-        styles.base,
-        size === 'large' ? styles.large : styles.medium,
-        fullWidth ? styles.fullWidth : null,
-        {
-          backgroundColor: pressed ? palette.pressedBackground : palette.background,
-          borderColor: palette.border ?? colors.transparent,
-          borderWidth: palette.border ? 1 : 0,
-        },
-        palette.shadow,
-        pressed ? styles.pressed : null,
-        isInteractionBlocked ? styles.disabled : null,
-        style,
-      ]}
+    <button
+      type={type}
+      className={clsx(
+        styles.button,
+        styles[variant],
+        size === 'large' && styles.large,
+        fullWidth && styles.fullWidth,
+        className,
+      )}
+      disabled={isBlocked}
+      aria-busy={loading}
       {...rest}
     >
       {loading ? (
-        <ActivityIndicator color={palette.foreground} />
+        <LoaderCircle size={iconSize} className={styles.spinner} aria-hidden="true" />
       ) : (
-        <View style={styles.content}>
-          {iconPosition === 'left' ? iconElement : null}
-          <Text
-            variant={size === 'large' ? 'subheading' : 'bodyStrong'}
-            color={palette.foreground}
-            numberOfLines={1}
-          >
-            {label}
-          </Text>
-          {iconPosition === 'right' ? iconElement : null}
-        </View>
+        Icon && iconPosition === 'left' && <Icon size={iconSize} aria-hidden="true" />
       )}
-    </Pressable>
+      <span>{label}</span>
+      {!loading && Icon && iconPosition === 'right' && <Icon size={iconSize} aria-hidden="true" />}
+      {trailing}
+    </button>
   );
 };
-
-const styles = StyleSheet.create({
-  base: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radii.xl,
-    minHeight: MIN_TOUCH_TARGET,
-    paddingHorizontal: spacing.xl,
-  },
-  medium: {
-    paddingVertical: spacing.md,
-  },
-  large: {
-    paddingVertical: spacing.lg,
-  },
-  fullWidth: {
-    alignSelf: 'stretch',
-  },
-  content: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  pressed: {
-    transform: [{ scale: 0.985 }],
-  },
-  disabled: {
-    opacity: 0.55,
-  },
-});

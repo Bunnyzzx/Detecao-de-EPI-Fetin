@@ -1,0 +1,77 @@
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-lg);
+  padding: var(--space-4xl) var(--space-2xl);
+  text-align: center;
+}
+
+.compact {
+  padding: var(--space-2xl) var(--space-lg);
+  gap: var(--space-md);
+}
+
+.iconWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.5rem;
+  height: 4.5rem;
+  border-radius: var(--radius-pill);
+}
+
+.compact .iconWrapper {
+  width: 3.25rem;
+  height: 3.25rem;
+}
+
+.title {
+  font-size: var(--font-size-heading);
+  font-weight: 700;
+}
+
+.compact .title {
+  font-size: var(--font-size-subheading);
+}
+
+.description {
+  max-width: 34rem;
+  color: var(--color-slate-500);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  justify-content: center;
+}
+
+.neutral .iconWrapper {
+  background-color: var(--color-slate-100);
+  color: var(--color-slate-500);
+}
+
+.info .iconWrapper {
+  background-color: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.warning .iconWrapper {
+  background-color: var(--color-warning-soft);
+  color: var(--color-warning-dark);
+}
+
+.danger .iconWrapper {
+  background-color: var(--color-rejected-soft);
+  color: var(--color-rejected-dark);
+}
+
+.onDark .title {
+  color: var(--color-white);
+}
+
+.onDark .description {
+  color: var(--color-slate-400);
+}

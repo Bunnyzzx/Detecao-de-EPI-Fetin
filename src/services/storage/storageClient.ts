@@ -1,32 +1,30 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
 import { AppError } from '@/services/errors';
 
 /**
- * Único módulo que fala com o AsyncStorage. Telas e componentes usam sempre um
- * repositório, nunca esta camada diretamente.
+ * Único módulo que fala com o `localStorage`. Telas e componentes usam sempre
+ * um repositório, nunca esta camada diretamente.
  */
 export const storageClient = {
-  async readJson<TValue>(key: string): Promise<TValue | null> {
+  readJson<TValue>(key: string): TValue | null {
     try {
-      const raw = await AsyncStorage.getItem(key);
+      const raw = localStorage.getItem(key);
       return raw ? (JSON.parse(raw) as TValue) : null;
     } catch (error) {
       throw new AppError('storage', `Não foi possível ler "${key}".`, error);
     }
   },
 
-  async writeJson<TValue>(key: string, value: TValue): Promise<void> {
+  writeJson<TValue>(key: string, value: TValue): void {
     try {
-      await AsyncStorage.setItem(key, JSON.stringify(value));
+      localStorage.setItem(key, JSON.stringify(value));
     } catch (error) {
       throw new AppError('storage', `Não foi possível salvar "${key}".`, error);
     }
   },
 
-  async remove(key: string): Promise<void> {
+  remove(key: string): void {
     try {
-      await AsyncStorage.removeItem(key);
+      localStorage.removeItem(key);
     } catch (error) {
       throw new AppError('storage', `Não foi possível apagar "${key}".`, error);
     }

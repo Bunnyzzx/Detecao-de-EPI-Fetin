@@ -1,0 +1,29 @@
+.card {
+  border-radius: var(--radius-2xl);
+  padding: var(--space-2xl);
+}
+
+.flush {
+  padding: 0;
+}
+
+.elevated {
+  background-color: var(--color-white);
+  box-shadow: var(--shadow-md);
+}
+
+.outlined {
+  background-color: var(--color-white);
+  border: 1px solid var(--color-slate-200);
+}
+
+.muted {
+  background-color: var(--color-slate-50);
+  border: 1px solid var(--color-slate-100);
+}
+
+.dark {
+  background-color: var(--color-scanner-panel);
+  border: 1px solid var(--overlay-border);
+  color: var(--color-white);
+}

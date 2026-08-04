@@ -1,0 +1,79 @@
+.steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-2xl);
+  border-top: 1px solid var(--color-slate-200);
+  background-color: var(--color-white);
+}
+
+.onDark {
+  border-top-color: var(--overlay-border);
+  background-color: var(--color-scanner-bg);
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--font-size-micro);
+  color: var(--color-slate-400);
+}
+
+.onDark .step {
+  color: var(--color-slate-500);
+}
+
+.active {
+  color: var(--color-slate-800);
+  font-weight: 600;
+}
+
+.onDark .active {
+  color: var(--color-white);
+}
+
+.marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: var(--radius-pill);
+  background-color: var(--color-slate-200);
+  color: var(--color-slate-500);
+  font-size: var(--font-size-micro);
+  font-weight: 700;
+}
+
+.onDark .marker {
+  background-color: var(--overlay-light);
+  color: var(--color-slate-400);
+}
+
+.activeMarker {
+  background-color: var(--color-primary);
+  color: var(--color-white);
+}
+
+.doneMarker {
+  background-color: var(--color-approved);
+  color: var(--color-white);
+}
+
+.connector {
+  width: 1.75rem;
+  height: 2px;
+  margin-inline: var(--space-sm);
+  border-radius: var(--radius-pill);
+  background-color: var(--color-slate-200);
+}
+
+.onDark .connector {
+  background-color: var(--overlay-border);
+}
+
+.doneConnector {
+  background-color: var(--color-approved);
+}

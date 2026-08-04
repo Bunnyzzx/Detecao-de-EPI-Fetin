@@ -1,9 +1,10 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { StyleSheet, View } from 'react-native';
+import clsx from 'clsx';
+import { Check } from 'lucide-react';
+import { Fragment } from 'react';
 
-import { Text } from '@/components/ui';
 import { APP_MESSAGES } from '@/constants/messages';
-import { colors, radii, spacing } from '@/theme';
+
+import styles from './StepIndicator.module.css';
 
 export type FlowStep = 'start' | 'verification' | 'access';
 
@@ -15,95 +16,49 @@ const STEPS: { key: FlowStep; label: string }[] = [
 
 export interface StepIndicatorProps {
   currentStep: FlowStep;
-  tone?: 'light' | 'dark';
+  onDark?: boolean;
 }
 
 /** Rodapé "1 Início · 2 Verificação · 3 Acesso" do protótipo. */
-export const StepIndicator = ({ currentStep, tone = 'light' }: StepIndicatorProps) => {
+export const StepIndicator = ({ currentStep, onDark = false }: StepIndicatorProps) => {
   const currentIndex = STEPS.findIndex((step) => step.key === currentStep);
-  const isDark = tone === 'dark';
 
   return (
-    <View style={styles.container} accessibilityRole="progressbar">
+    <nav
+      className={clsx(styles.steps, onDark && styles.onDark)}
+      aria-label={`Etapa ${currentIndex + 1} de ${STEPS.length}`}
+    >
       {STEPS.map((step, index) => {
-        const isCompleted = index < currentIndex;
+        const isDone = index < currentIndex;
         const isActive = index === currentIndex;
-        const circleColor = isCompleted
-          ? colors.status.approved
-          : isActive
-            ? colors.primary
-            : isDark
-              ? colors.overlayLight
-              : colors.slate[200];
-        const labelColor = isActive
-          ? isDark
-            ? colors.white
-            : colors.slate[800]
-          : isDark
-            ? colors.slate[500]
-            : colors.slate[400];
 
         return (
-          <View key={step.key} style={styles.step}>
-            <View style={[styles.circle, { backgroundColor: circleColor }]}>
-              {isCompleted ? (
-                <MaterialCommunityIcons name="check" size={13} color={colors.white} />
-              ) : (
-                <Text
-                  variant="micro"
-                  color={isActive ? colors.white : isDark ? colors.slate[400] : colors.slate[500]}
-                >
-                  {index + 1}
-                </Text>
-              )}
-            </View>
-            <Text variant="micro" color={labelColor}>
+          <Fragment key={step.key}>
+            <span
+              className={clsx(styles.step, isActive && styles.active)}
+              aria-current={isActive ? 'step' : undefined}
+            >
+              <span
+                className={clsx(
+                  styles.marker,
+                  isActive && styles.activeMarker,
+                  isDone && styles.doneMarker,
+                )}
+              >
+                {isDone ? <Check size={12} aria-hidden="true" /> : index + 1}
+              </span>
               {step.label}
-            </Text>
-            {index < STEPS.length - 1 ? (
-              <View
-                style={[
-                  styles.connector,
-                  {
-                    backgroundColor: isCompleted
-                      ? colors.status.approved
-                      : isDark
-                        ? colors.overlayBorder
-                        : colors.slate[200],
-                  },
-                ]}
+            </span>
+
+            {index < STEPS.length - 1 && (
+              <span
+                className={clsx(styles.connector, isDone && styles.doneConnector)}
+                aria-hidden="true"
               />
-            ) : null}
-          </View>
+            )}
+          </Fragment>
         );
       })}
-    </View>
+    </nav>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.md,
-  },
-  step: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs + 2,
-  },
-  circle: {
-    width: 20,
-    height: 20,
-    borderRadius: radii.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  connector: {
-    width: 26,
-    height: 2,
-    marginHorizontal: spacing.sm,
-    borderRadius: radii.pill,
-  },
-});

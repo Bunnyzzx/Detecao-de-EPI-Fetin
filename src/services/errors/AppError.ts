@@ -1,10 +1,9 @@
 export type AppErrorCode =
   | 'network'
   | 'timeout'
-  | 'invalid_image'
   | 'invalid_response'
-  | 'permission_denied'
-  | 'device_unsupported'
+  | 'cancelled'
+  | 'no_active_epis'
   | 'storage'
   | 'unknown';
 
@@ -25,3 +24,8 @@ export class AppError extends Error {
 }
 
 export const isAppError = (error: unknown): error is AppError => error instanceof AppError;
+
+export const isCancellation = (error: unknown): boolean =>
+  isAppError(error)
+    ? error.code === 'cancelled'
+    : error instanceof Error && error.name === 'AbortError';

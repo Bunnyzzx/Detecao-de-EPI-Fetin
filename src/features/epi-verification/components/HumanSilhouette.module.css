@@ -1,0 +1,48 @@
+.silhouette {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 10px 30px rgba(0, 212, 255, 0.18));
+}
+
+.body {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.28);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.zone {
+  fill: rgba(0, 212, 255, 0.07);
+  stroke: rgba(0, 212, 255, 0.28);
+  stroke-width: 1.5;
+  transition:
+    fill var(--transition-base),
+    stroke var(--transition-base);
+}
+
+.zoneScanning {
+  fill: rgba(0, 212, 255, 0.16);
+  stroke: var(--color-accent);
+  animation: pulse 1.1s ease-in-out infinite;
+}
+
+.zoneDetected {
+  fill: rgba(34, 197, 94, 0.16);
+  stroke: var(--color-approved);
+}
+
+.zoneMissing {
+  fill: rgba(239, 68, 68, 0.14);
+  stroke: var(--color-rejected);
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}

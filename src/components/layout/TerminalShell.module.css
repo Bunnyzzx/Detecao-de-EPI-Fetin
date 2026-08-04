@@ -1,0 +1,16 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: var(--color-slate-50);
+}
+
+.onDark {
+  background-color: var(--color-scanner-bg);
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}

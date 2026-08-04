@@ -1,72 +1,55 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { forwardRef } from 'react';
-import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
+import clsx from 'clsx';
+import type { LucideIcon } from 'lucide-react';
+import { useId, type InputHTMLAttributes, type Ref } from 'react';
 
-import type { MaterialCommunityIconName } from '@/features/epi-detection/types';
-import { colors, radii, spacing, MIN_TOUCH_TARGET } from '@/theme';
+import styles from './TextField.module.css';
 
-import { Text } from './Text';
-
-export interface TextFieldProps extends TextInputProps {
+export interface TextFieldProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
   errorMessage?: string;
-  icon?: MaterialCommunityIconName;
+  icon?: LucideIcon;
+  ref?: Ref<HTMLInputElement>;
+  /** Esconde o rótulo visualmente, mantendo-o para leitores de tela. */
+  hideLabel?: boolean;
 }
 
-export const TextField = forwardRef<TextInput, TextFieldProps>(
-  ({ label, errorMessage, icon, style, ...rest }, ref) => {
-    const hasError = Boolean(errorMessage);
+export const TextField = ({
+  label,
+  errorMessage,
+  icon: Icon,
+  hideLabel = false,
+  className,
+  ref,
+  ...rest
+}: TextFieldProps) => {
+  const generatedId = useId();
+  const inputId = rest.id ?? generatedId;
+  const errorId = `${inputId}-error`;
+  const hasError = Boolean(errorMessage);
 
-    return (
-      <View style={styles.container}>
-        <Text variant="captionStrong" color={colors.slate[600]}>
-          {label}
-        </Text>
-        <View style={[styles.inputWrapper, hasError ? styles.inputWrapperError : null]}>
-          {icon ? <MaterialCommunityIcons name={icon} size={18} color={colors.slate[400]} /> : null}
-          <TextInput
-            ref={ref}
-            accessibilityLabel={label}
-            placeholderTextColor={colors.slate[400]}
-            style={[styles.input, style]}
-            {...rest}
-          />
-        </View>
-        {hasError ? (
-          <Text variant="caption" color={colors.status.rejectedText}>
-            {errorMessage}
-          </Text>
-        ) : null}
-      </View>
-    );
-  },
-);
+  return (
+    <div className={clsx(styles.field, className)}>
+      <label className={clsx(styles.label, hideLabel && 'visually-hidden')} htmlFor={inputId}>
+        {label}
+      </label>
 
-TextField.displayName = 'TextField';
+      <div className={clsx(styles.control, hasError && styles.hasError)}>
+        {Icon && <Icon size={18} className={styles.icon} aria-hidden="true" />}
+        <input
+          {...rest}
+          id={inputId}
+          ref={ref}
+          className={styles.input}
+          aria-invalid={hasError}
+          aria-describedby={hasError ? errorId : undefined}
+        />
+      </div>
 
-const styles = StyleSheet.create({
-  container: {
-    gap: spacing.xs + 2,
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    minHeight: MIN_TOUCH_TARGET,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.slate[200],
-    backgroundColor: colors.slate[50],
-  },
-  inputWrapperError: {
-    borderColor: colors.status.rejected,
-    backgroundColor: colors.status.rejectedSoft,
-  },
-  input: {
-    flex: 1,
-    paddingVertical: spacing.md,
-    fontSize: 15,
-    color: colors.slate[900],
-  },
-});
+      {hasError && (
+        <span id={errorId} role="alert" className={styles.error}>
+          {errorMessage}
+        </span>
+      )}
+    </div>
+  );
+};

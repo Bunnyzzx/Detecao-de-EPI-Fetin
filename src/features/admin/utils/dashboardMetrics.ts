@@ -1,5 +1,9 @@
 import { EPI_CATALOG } from '@/constants/epiCatalog';
-import type { DetectionStatus, EpiDetectionResult, EpiId } from '@/features/epi-detection/types';
+import type {
+  EpiId,
+  VerificationResult,
+  VerificationStatus,
+} from '@/features/epi-verification/types';
 
 export interface DailyBucket {
   /** Rótulo curto do dia da semana, ex.: "Seg". */
@@ -9,7 +13,7 @@ export interface DailyBucket {
 }
 
 export interface StatusDistribution {
-  status: DetectionStatus;
+  status: VerificationStatus;
   count: number;
   ratio: number;
 }
@@ -31,38 +35,38 @@ export interface DashboardMetrics {
 }
 
 const WEEKDAY_LABELS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'] as const;
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
 const startOfDay = (date: Date): number =>
   new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
 
-const labelForDay = (date: Date): string => WEEKDAY_LABELS[date.getDay()] ?? '';
-
 /**
  * Indicadores do painel derivados do histórico local — no protótipo os números
- * eram fixos; aqui refletem as análises realmente realizadas no aparelho.
+ * eram fixos; aqui refletem as verificações realmente feitas neste terminal.
  */
 export const buildDashboardMetrics = (
-  results: EpiDetectionResult[],
+  results: VerificationResult[],
   now: Date = new Date(),
 ): DashboardMetrics => {
   const todayStart = startOfDay(now);
-  const dayInMs = 24 * 60 * 60 * 1000;
 
   const weekly: DailyBucket[] = Array.from({ length: 7 }, (_, index) => {
-    const date = new Date(todayStart - (6 - index) * dayInMs);
-    return { label: labelForDay(date), compliant: 0, nonCompliant: 0 };
+    const date = new Date(todayStart - (6 - index) * DAY_IN_MS);
+    return { label: WEEKDAY_LABELS[date.getDay()] ?? '', compliant: 0, nonCompliant: 0 };
   });
 
-  const statusCounts: Record<DetectionStatus, number> = { approved: 0, warning: 0, rejected: 0 };
+  const statusCounts: Record<VerificationStatus, number> = {
+    approved: 0,
+    warning: 0,
+    rejected: 0,
+  };
   const missingCounts = new Map<EpiId, number>();
 
   let today = 0;
   let week = 0;
 
   results.forEach((result) => {
-    const analyzedAt = new Date(result.analyzedAt);
-    const analyzedDayStart = startOfDay(analyzedAt);
-    const daysAgo = Math.round((todayStart - analyzedDayStart) / dayInMs);
+    const daysAgo = Math.round((todayStart - startOfDay(new Date(result.verifiedAt))) / DAY_IN_MS);
 
     statusCounts[result.status] += 1;
     result.missingItems.forEach((item) => {
@@ -89,7 +93,7 @@ export const buildDashboardMetrics = (
   const total = results.length;
 
   const distribution: StatusDistribution[] = (
-    ['approved', 'warning', 'rejected'] as DetectionStatus[]
+    ['approved', 'warning', 'rejected'] as VerificationStatus[]
   ).map((status) => ({
     status,
     count: statusCounts[status],

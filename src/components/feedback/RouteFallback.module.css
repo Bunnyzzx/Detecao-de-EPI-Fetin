@@ -1,0 +1,19 @@
+.fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-md);
+  min-height: 100%;
+  padding: var(--space-4xl);
+  color: var(--color-slate-500);
+}
+
+.spinner {
+  animation: spin 900ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

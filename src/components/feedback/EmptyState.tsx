@@ -1,19 +1,19 @@
-import type { MaterialCommunityIconName } from '@/features/epi-detection/types';
+import { Inbox, type LucideIcon } from 'lucide-react';
 
-import { StateView, type StateViewAction } from './StateView';
+import { StateView, type StateAction } from './StateView';
 
 export interface EmptyStateProps {
   title: string;
   description?: string;
-  icon?: MaterialCommunityIconName;
-  action?: StateViewAction;
+  icon?: LucideIcon;
+  action?: StateAction;
   compact?: boolean;
 }
 
 export const EmptyState = ({
   title,
   description,
-  icon = 'inbox-outline',
+  icon = Inbox,
   action,
   compact = false,
 }: EmptyStateProps) => (

@@ -1,8 +1,8 @@
-import { STORAGE_KEYS } from '@/constants/detection';
+import { STORAGE_KEYS } from '@/constants/verification';
 import { storageClient } from '@/services/storage/storageClient';
 
 import { SEED_USERS } from '../mocks/seedUsers';
-import { USER_ROLES, type AdminUser, type UsersRepository, type UserRole } from '../types';
+import { USER_ROLES, type AdminUser, type UserRole, type UsersRepository } from '../types';
 
 const isUserRole = (value: unknown): value is UserRole =>
   typeof value === 'string' && (USER_ROLES as readonly string[]).includes(value);
@@ -26,32 +26,31 @@ const isAdminUser = (value: unknown): value is AdminUser => {
  * usuários de exemplo do protótipo.
  */
 export const usersRepository: UsersRepository = {
-  async getAll() {
-    const stored = await storageClient.readJson<unknown>(STORAGE_KEYS.users);
+  getAll() {
+    const stored = storageClient.readJson<unknown>(STORAGE_KEYS.users);
 
     if (!Array.isArray(stored)) {
       const seeded = [...SEED_USERS];
-      await storageClient.writeJson(STORAGE_KEYS.users, seeded);
+      storageClient.writeJson(STORAGE_KEYS.users, seeded);
       return seeded;
     }
 
     return stored.filter(isAdminUser);
   },
 
-  async save(user) {
-    const all = await this.getAll();
+  save(user) {
+    const all = this.getAll();
     const exists = all.some((item) => item.id === user.id);
-    const updated = exists
-      ? all.map((item) => (item.id === user.id ? user : item))
-      : [user, ...all];
-    await storageClient.writeJson(STORAGE_KEYS.users, updated);
+    storageClient.writeJson(
+      STORAGE_KEYS.users,
+      exists ? all.map((item) => (item.id === user.id ? user : item)) : [user, ...all],
+    );
   },
 
-  async remove(id) {
-    const all = await this.getAll();
-    await storageClient.writeJson(
+  remove(id) {
+    storageClient.writeJson(
       STORAGE_KEYS.users,
-      all.filter((item) => item.id !== id),
+      this.getAll().filter((item) => item.id !== id),
     );
   },
 };

@@ -16,9 +16,9 @@ export interface AdminUser {
 }
 
 export interface UsersRepository {
-  getAll(): Promise<AdminUser[]>;
-  save(user: AdminUser): Promise<void>;
-  remove(id: string): Promise<void>;
+  getAll(): AdminUser[];
+  save(user: AdminUser): void;
+  remove(id: string): void;
 }
 
 export interface AdminCredentials {

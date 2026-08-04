@@ -1,53 +1,31 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import clsx from 'clsx';
+import type { LucideIcon } from 'lucide-react';
 
-import type { MaterialCommunityIconName } from '@/features/epi-detection/types';
-import { colors, radii, spacing } from '@/theme';
+import styles from './Badge.module.css';
 
-import { Text } from './Text';
+export type BadgeTone = 'neutral' | 'info' | 'approved' | 'warning' | 'rejected' | 'onDark';
 
 export interface BadgeProps {
   label: string;
-  backgroundColor?: string;
-  textColor?: string;
-  icon?: MaterialCommunityIconName;
-  /** Ponto colorido usado no protótipo antes do texto do selo. */
-  dotColor?: string;
+  tone?: BadgeTone;
+  icon?: LucideIcon;
+  /** Ponto colorido antes do texto, como nos selos do protótipo. */
+  withDot?: boolean;
   uppercase?: boolean;
-  style?: StyleProp<ViewStyle>;
+  className?: string;
 }
 
 export const Badge = ({
   label,
-  backgroundColor = colors.primarySoft,
-  textColor = colors.primary,
-  icon,
-  dotColor,
+  tone = 'info',
+  icon: Icon,
+  withDot = false,
   uppercase = false,
-  style,
+  className,
 }: BadgeProps) => (
-  <View style={[styles.container, { backgroundColor }, style]}>
-    {dotColor ? <View style={[styles.dot, { backgroundColor: dotColor }]} /> : null}
-    {icon ? <MaterialCommunityIcons name={icon} size={14} color={textColor} /> : null}
-    <Text variant={uppercase ? 'overline' : 'captionStrong'} color={textColor}>
-      {label}
-    </Text>
-  </View>
+  <span className={clsx(styles.badge, styles[tone], uppercase && styles.uppercase, className)}>
+    {withDot && <span className={styles.dot} aria-hidden="true" />}
+    {Icon && <Icon size={14} aria-hidden="true" />}
+    {label}
+  </span>
 );
-
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: spacing.xs + 2,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm - 1,
-    borderRadius: radii.pill,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: radii.pill,
-  },
-});

@@ -1,0 +1,61 @@
+.page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  padding: var(--space-3xl);
+  background-image: linear-gradient(135deg, var(--color-slate-800), var(--color-slate-900));
+}
+
+.card {
+  width: 100%;
+  max-width: 26rem;
+}
+
+.emblem {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  margin-bottom: var(--space-lg);
+  border-radius: var(--radius-xl);
+  background-color: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.title {
+  font-size: var(--font-size-title);
+  font-weight: 700;
+}
+
+.description {
+  margin-top: var(--space-xxs);
+  margin-bottom: var(--space-2xl);
+  font-size: var(--font-size-caption);
+  color: var(--color-slate-500);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.errorBanner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-rejected-soft);
+  color: var(--color-rejected-text);
+  font-size: var(--font-size-caption);
+}
+
+.hint {
+  margin-top: var(--space-md);
+  font-size: var(--font-size-micro);
+  color: var(--color-slate-400);
+  text-align: center;
+}
