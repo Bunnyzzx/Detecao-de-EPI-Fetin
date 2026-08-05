@@ -13,8 +13,6 @@ export const DETECTION_THRESHOLDS = {
 export const STORAGE_KEYS = {
   history: '@epi-fetin/detection-history',
   requiredEpis: '@epi-fetin/required-epis',
-  users: '@epi-fetin/users',
-  adminSession: '@epi-fetin/admin-session',
 } as const;
 
 /** Limite de itens guardados no histórico local. */

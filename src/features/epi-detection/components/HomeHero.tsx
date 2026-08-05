@@ -1,17 +1,13 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { Text } from '@/components/ui';
 import { APP_MESSAGES } from '@/constants/messages';
-import { colors, radii, spacing, MIN_TOUCH_TARGET } from '@/theme';
-
-export interface HomeHeroProps {
-  onOpenAdmin: () => void;
-}
+import { colors, radii, spacing } from '@/theme';
 
 /** Painel azul de abertura, equivalente à coluna esquerda do protótipo. */
-export const HomeHero = ({ onOpenAdmin }: HomeHeroProps) => (
+export const HomeHero = () => (
   <LinearGradient
     colors={[colors.primaryDark, colors.primaryDeep]}
     start={{ x: 0, y: 0 }}
@@ -28,18 +24,6 @@ export const HomeHero = ({ onOpenAdmin }: HomeHeroProps) => (
           {APP_MESSAGES.home.restrictedBadge}
         </Text>
       </View>
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`${APP_MESSAGES.home.adminButton}. ${APP_MESSAGES.admin.loginTitle}`}
-        onPress={onOpenAdmin}
-        style={({ pressed }) => [styles.adminButton, pressed ? styles.adminButtonPressed : null]}
-      >
-        <MaterialCommunityIcons name="shield-lock-outline" size={16} color={colors.white} />
-        <Text variant="captionStrong" color={colors.white}>
-          {APP_MESSAGES.home.adminButton}
-        </Text>
-      </Pressable>
     </View>
 
     <View style={styles.emblem}>
@@ -103,21 +87,6 @@ const styles = StyleSheet.create({
     height: 7,
     borderRadius: radii.pill,
     backgroundColor: colors.accent,
-  },
-  adminButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs + 2,
-    minHeight: MIN_TOUCH_TARGET - 12,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: radii.pill,
-    backgroundColor: 'rgba(255, 255, 255, 0.16)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-  },
-  adminButtonPressed: {
-    backgroundColor: 'rgba(255, 255, 255, 0.28)',
   },
   emblem: {
     width: 92,

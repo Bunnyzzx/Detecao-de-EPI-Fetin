@@ -63,7 +63,7 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         bounces={false}
       >
-        <HomeHero onOpenAdmin={() => router.push('/admin')} />
+        <HomeHero />
 
         <View style={styles.body}>
           <Card>
