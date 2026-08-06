@@ -20,7 +20,7 @@ export default function HomeScreen() {
   /** Única ação do terminal: abrir a sessão de verificação. */
   const handleStart = useCallback(() => {
     impact();
-    router.push('/camera');
+    router.push('/verificacao');
   }, [impact, router]);
 
   if (loading) {

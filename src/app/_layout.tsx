@@ -2,27 +2,28 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { AnalysisProvider } from '@/features/epi-detection/hooks/AnalysisContext';
+import { VerificationSessionProvider } from '@/features/verification-session/hooks/VerificationSessionContext';
 import { colors } from '@/theme';
 
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-      <AnalysisProvider>
+      <VerificationSessionProvider>
         <StatusBar style="dark" />
         <Stack
           screenOptions={{
             headerShown: false,
             contentStyle: { backgroundColor: colors.slate[50] },
-            animation: 'slide_from_right',
+            animation: 'fade',
             gestureEnabled: false,
           }}
         >
           <Stack.Screen name="index" />
-          <Stack.Screen name="camera" options={{ animation: 'fade' }} />
-          <Stack.Screen name="result" />
+          <Stack.Screen name="verificacao" />
+          <Stack.Screen name="resultado" />
+          <Stack.Screen name="+not-found" />
         </Stack>
-      </AnalysisProvider>
+      </VerificationSessionProvider>
     </SafeAreaProvider>
   );
 }

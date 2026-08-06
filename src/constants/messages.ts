@@ -57,44 +57,60 @@ export const APP_MESSAGES = {
   },
 
   scan: {
+    title: 'Verificação em andamento',
     analyzing: 'Analisando...',
     analyzingHint: 'Identificando os equipamentos de proteção individual.',
+    opening: 'Iniciando verificação...',
+    openingHint: 'Aguarde um instante.',
+    faceScanning: 'Reconhecendo usuário...',
+    faceScanningHint: 'Olhe para a câmera e permaneça parado.',
+    epiDetecting: 'Verificando equipamentos...',
+    checklistTitle: 'Equipamentos',
+    waiting: 'Aguardando',
+    detected: 'Detectado',
+    notDetected: 'Não detectado',
+    cancelledTitle: 'Verificação interrompida',
+    cancelledDescription: 'A verificação foi cancelada antes de terminar.',
+    errorTitle: 'Falha na verificação',
+    errorDescription: 'Não foi possível concluir a verificação. Tente novamente.',
+    retryButton: 'Tentar novamente',
+  },
+
+  face: {
+    unknownTitle: 'Usuário não reconhecido',
+    unknownDescription: 'Nenhum cadastro correspondeu ao rosto capturado.',
+    registrationLabel: 'Matrícula',
+    confidenceLabel: 'Confiança',
+    recognizedTitle: 'Usuário identificado',
   },
 
   result: {
-    title: 'Resultado da verificação',
+    approvedTitle: 'Acesso liberado',
+    approvedSubtitle: 'Todos os equipamentos de proteção individual foram verificados.',
+    rejectedTitle: 'Acesso negado',
+    rejectedReasonPrefix: 'Equipamentos não identificados:',
+    rejectedNoDetection: 'Nenhum equipamento de proteção individual foi identificado.',
     approvedHeadline: 'Acesso Liberado',
-    approvedSubtitle: 'Todos os equipamentos de proteção individual foram verificados com sucesso.',
-    approvedCardTitle: 'Todos os EPIs confirmados',
     warningHeadline: 'Atenção',
-    warningSubtitle:
-      'A verificação identificou pendências ou baixa confiança. Confira os itens abaixo antes de liberar o acesso.',
-    warningCardTitle: 'Verificação parcial',
     rejectedHeadline: 'Acesso Negado',
-    rejectedSubtitle:
-      'Equipamentos obrigatórios não foram identificados. O acesso à área não pode ser liberado.',
+    approvedCardTitle: 'Todos os EPIs confirmados',
+    warningCardTitle: 'Verificação parcial',
     rejectedCardTitle: 'EPIs obrigatórios ausentes',
-    verifiedSuffix: 'Equipamentos verificados',
-    detectedSectionTitle: 'EPIs detectados',
-    missingSectionTitle: 'EPIs ausentes',
-    confidenceLabel: 'Nível de confiança',
-    accessTimeLabel: 'Horário de acesso',
+    warningSubtitle:
+      'A verificação identificou pendências ou baixa confiança. Confira os itens antes de liberar o acesso.',
+    verifiedSuffix: 'equipamentos verificados',
+    confidenceLabel: 'Confiança',
     accessValidBadge: 'Acesso válido',
     accessInvalidBadge: 'Acesso bloqueado',
     accessReviewBadge: 'Revisar antes de liberar',
-    continueButton: 'Continuar para a área',
-    newAnalysisButton: 'Nova análise',
     backHomeButton: 'Voltar ao início',
-    noDetectionTitle: 'Nenhum equipamento reconhecido',
-    noDetectionDescription:
-      'A análise não identificou nenhum equipamento na imagem. Refaça a foto com o corpo inteiro enquadrado e boa iluminação.',
-    lowConfidenceTitle: 'Confiança baixa',
-    lowConfidenceDescription:
-      'Os equipamentos foram reconhecidos com baixa confiança. Recomenda-se refazer a análise com melhor iluminação.',
-    disclaimer:
-      'Este sistema auxilia a inspeção de EPIs, mas não substitui a avaliação de um profissional de segurança do trabalho.',
     missingResultTitle: 'Resultado indisponível',
-    missingResultDescription: 'Não encontramos essa análise. Realize uma nova verificação.',
+    missingResultDescription: 'Nenhuma verificação em andamento. Inicie uma nova.',
+  },
+
+  notFound: {
+    title: 'Tela não encontrada',
+    description: 'Esta rota não faz parte do terminal de verificação.',
   },
 
   counts: {

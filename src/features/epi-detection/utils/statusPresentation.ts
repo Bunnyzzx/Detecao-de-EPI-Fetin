@@ -47,7 +47,7 @@ const PRESENTATION: Record<DetectionStatus, StatusPresentation> = {
   },
   rejected: {
     headline: APP_MESSAGES.result.rejectedHeadline,
-    subtitle: APP_MESSAGES.result.rejectedSubtitle,
+    subtitle: APP_MESSAGES.result.rejectedNoDetection,
     cardTitle: APP_MESSAGES.result.rejectedCardTitle,
     accessBadge: APP_MESSAGES.result.accessInvalidBadge,
     shortLabel: 'Reprovado',
