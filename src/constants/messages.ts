@@ -20,11 +20,9 @@ export const APP_MESSAGES = {
     equipmentCountSuffix: 'equipamentos ativos para verificação',
     equipmentCountSuffixSingular: 'equipamento ativo para verificação',
     startButton: 'Iniciar Verificação',
-    galleryButton: 'Escolher da galeria',
-    startHint: 'Toque no botão para ativar a câmera de verificação',
+    startHint: 'Toque no botão e a verificação começa automaticamente',
     simulationNotice:
-      'Modo simulado: os resultados são gerados localmente até que a API de detecção seja configurada.',
-    historyButton: 'Histórico de análises',
+      'Modo simulado: os resultados são gerados localmente até que a integração com o dispositivo de detecção seja configurada.',
     noEquipmentTitle: 'Nenhum equipamento ativo',
     noEquipmentDescription:
       'Ative pelo menos um equipamento na área administrativa para iniciar uma verificação.',
@@ -42,48 +40,25 @@ export const APP_MESSAGES = {
     frameHint: 'Posicione-se dentro do quadro e permaneça parado',
     captureLabel: 'Capturar foto',
     flipLabel: 'Alternar câmera',
-    galleryLabel: 'Abrir galeria',
     capturing: 'Capturando...',
     permissionTitle: 'Precisamos da sua câmera',
     permissionDescription:
-      'A câmera é usada apenas para capturar a foto analisada na verificação dos equipamentos de proteção individual. Nenhuma imagem é enviada para fora do aparelho enquanto o modo simulado estiver ativo.',
+      'A câmera é usada apenas durante a verificação dos equipamentos de proteção individual. Nenhuma imagem sai do aparelho enquanto o modo simulado estiver ativo.',
     permissionRequestButton: 'Permitir câmera',
     permissionDeniedTitle: 'Permissão de câmera negada',
     permissionDeniedDescription:
-      'Autorize o acesso à câmera nas configurações do aparelho para realizar a verificação. Você também pode enviar uma imagem da galeria.',
+      'Autorize o acesso à câmera nas configurações do aparelho para realizar a verificação.',
     openSettingsButton: 'Abrir configurações',
     unavailableTitle: 'Câmera indisponível',
     unavailableDescription:
-      'Este dispositivo não possui uma câmera compatível. Use uma imagem da galeria para realizar a análise.',
+      'Este dispositivo não possui uma câmera compatível para realizar a verificação.',
     captureErrorTitle: 'Não foi possível capturar',
     captureErrorDescription: 'Tente novamente mantendo o aparelho estável.',
   },
 
-  gallery: {
-    permissionDeniedTitle: 'Permissão da galeria negada',
-    permissionDeniedDescription:
-      'Autorize o acesso às suas fotos nas configurações do aparelho para escolher uma imagem.',
-    emptySelectionTitle: 'Nenhuma imagem selecionada',
-    emptySelectionDescription: 'Escolha uma imagem da galeria ou use a câmera para continuar.',
-    errorTitle: 'Não foi possível abrir a galeria',
-    errorDescription: 'Tente novamente em alguns instantes.',
-  },
-
-  preview: {
-    title: 'Pré-visualização',
-    description: 'Confira o enquadramento antes de enviar a imagem para análise.',
-    analyzeButton: 'Analisar imagem',
-    retakeCameraButton: 'Tirar outra foto',
-    retakeGalleryButton: 'Escolher outra imagem',
-    analyzing: 'Analisando imagem...',
+  scan: {
+    analyzing: 'Analisando...',
     analyzingHint: 'Identificando os equipamentos de proteção individual.',
-    invalidImageTitle: 'Imagem indisponível',
-    invalidImageDescription:
-      'Não foi possível carregar a imagem selecionada. Capture ou escolha outra imagem.',
-    missingImageTitle: 'Nenhuma imagem para analisar',
-    missingImageDescription: 'Volte ao início e capture ou selecione uma imagem.',
-    analysisErrorTitle: 'Falha na análise',
-    analysisErrorDescription: 'Não foi possível concluir a verificação. Tente novamente.',
   },
 
   result: {
@@ -122,22 +97,11 @@ export const APP_MESSAGES = {
     missingResultDescription: 'Não encontramos essa análise. Realize uma nova verificação.',
   },
 
-  history: {
-    title: 'Histórico',
-    subtitle: 'Análises realizadas neste aparelho',
-    emptyTitle: 'Nenhuma análise ainda',
-    emptyDescription: 'As verificações realizadas aparecerão aqui.',
-    clearButton: 'Apagar histórico',
-    clearConfirmTitle: 'Apagar histórico?',
-    clearConfirmDescription: 'Todas as análises salvas neste aparelho serão removidas.',
-    removeConfirmTitle: 'Remover análise?',
-    removeConfirmDescription: 'Esta análise será removida do histórico.',
+  counts: {
     detectedCountLabel: 'detectados',
     detectedCountLabelSingular: 'detectado',
     missingCountLabel: 'ausentes',
     missingCountLabelSingular: 'ausente',
-    errorTitle: 'Não foi possível carregar o histórico',
-    errorDescription: 'Tente novamente em alguns instantes.',
   },
 
   states: {

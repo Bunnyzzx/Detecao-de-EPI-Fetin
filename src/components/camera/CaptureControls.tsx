@@ -8,16 +8,14 @@ import { colors, radii, spacing } from '@/theme';
 export interface CaptureControlsProps {
   onCapture: () => void;
   onFlip: () => void;
-  onOpenGallery: () => void;
   capturing?: boolean;
   disabled?: boolean;
 }
 
-/** Barra inferior da câmera: galeria, disparo e alternância de lente. */
+/** Barra inferior da câmera: disparo e alternância de lente. */
 export const CaptureControls = ({
   onCapture,
   onFlip,
-  onOpenGallery,
   capturing = false,
   disabled = false,
 }: CaptureControlsProps) => {
@@ -25,14 +23,7 @@ export const CaptureControls = ({
 
   return (
     <View style={styles.container}>
-      <IconButton
-        icon="image-multiple-outline"
-        accessibilityLabel={APP_MESSAGES.camera.galleryLabel}
-        onPress={onOpenGallery}
-        color={colors.white}
-        backgroundColor={colors.overlayLight}
-        disabled={isBlocked}
-      />
+      <View style={styles.spacer} />
 
       <Pressable
         accessibilityRole="button"
@@ -74,6 +65,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: spacing.xxxl,
     paddingVertical: spacing.xl,
+  },
+  spacer: {
+    width: 48,
   },
   shutterOuter: {
     width: 78,

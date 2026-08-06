@@ -11,8 +11,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.fetin.detecaodeepi",
       "infoPlist": {
-        "NSCameraUsageDescription": "O aplicativo usa a câmera para verificar se os equipamentos de proteção individual estão sendo utilizados.",
-        "NSPhotoLibraryUsageDescription": "O aplicativo acessa suas fotos para analisar uma imagem já existente."
+        "NSCameraUsageDescription": "O aplicativo usa a câmera para verificar se os equipamentos de proteção individual estão sendo utilizados."
       }
     },
     "android": {
@@ -44,12 +43,6 @@
         "expo-camera",
         {
           "cameraPermission": "O aplicativo usa a câmera para verificar os equipamentos de proteção individual."
-        }
-      ],
-      [
-        "expo-image-picker",
-        {
-          "photosPermission": "O aplicativo acessa suas fotos para analisar uma imagem já existente."
         }
       ],
       "expo-asset",

@@ -15,13 +15,12 @@ export default function RootLayout() {
             headerShown: false,
             contentStyle: { backgroundColor: colors.slate[50] },
             animation: 'slide_from_right',
+            gestureEnabled: false,
           }}
         >
           <Stack.Screen name="index" />
           <Stack.Screen name="camera" options={{ animation: 'fade' }} />
-          <Stack.Screen name="preview" />
-          <Stack.Screen name="result" options={{ gestureEnabled: false }} />
-          <Stack.Screen name="history" />
+          <Stack.Screen name="result" />
         </Stack>
       </AnalysisProvider>
     </SafeAreaProvider>

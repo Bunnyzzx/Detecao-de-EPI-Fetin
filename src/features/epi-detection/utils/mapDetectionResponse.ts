@@ -70,10 +70,8 @@ export const mapDetectionResponse = (
   });
 
   return buildDetectionResult({
-    imageUri: input.imageUri,
     requiredItems: input.requiredItems,
     detections,
-    source: input.source,
     engine: 'api',
     processingTimeMs: isFiniteNumber(payload.processingTimeMs)
       ? payload.processingTimeMs

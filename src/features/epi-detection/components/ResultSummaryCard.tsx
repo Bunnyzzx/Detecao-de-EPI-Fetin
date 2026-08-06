@@ -53,8 +53,8 @@ export const ResultSummaryCard = ({ result }: ResultSummaryCardProps) => {
           </Text>
           <Text variant="micro" color={colors.slate[500]}>
             {verifiedCount === 1
-              ? APP_MESSAGES.history.detectedCountLabelSingular
-              : APP_MESSAGES.history.detectedCountLabel}
+              ? APP_MESSAGES.counts.detectedCountLabelSingular
+              : APP_MESSAGES.counts.detectedCountLabel}
           </Text>
         </View>
         <View style={styles.metricDivider} />
@@ -64,8 +64,8 @@ export const ResultSummaryCard = ({ result }: ResultSummaryCardProps) => {
           </Text>
           <Text variant="micro" color={colors.slate[500]}>
             {result.missingItems.length === 1
-              ? APP_MESSAGES.history.missingCountLabelSingular
-              : APP_MESSAGES.history.missingCountLabel}
+              ? APP_MESSAGES.counts.missingCountLabelSingular
+              : APP_MESSAGES.counts.missingCountLabel}
           </Text>
         </View>
         <View style={styles.metricDivider} />

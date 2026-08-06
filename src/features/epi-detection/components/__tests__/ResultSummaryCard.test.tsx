@@ -10,14 +10,12 @@ const makeResult = (status: DetectionStatus, missing: EpiId[]): EpiDetectionResu
   const result = buildDetectionResult({
     id: 'analise-1',
     analyzedAt: '2026-08-03T12:30:00.000Z',
-    imageUri: 'file:///captura.jpg',
     requiredItems: required,
     detections: required.map((id) => ({
       id,
       detected: !missing.includes(id),
       confidence: missing.includes(id) ? 0.2 : 0.9,
     })),
-    source: 'camera',
     engine: 'mock',
     processingTimeMs: 1500,
   });

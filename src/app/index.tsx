@@ -7,32 +7,21 @@ import { Screen, StepIndicator, TerminalStatusBar } from '@/components/layout';
 import { Button, Card, Text } from '@/components/ui';
 import { APP_MESSAGES } from '@/constants/messages';
 import { EpiGrid, HomeHero } from '@/features/epi-detection/components';
-import { useAnalysis } from '@/features/epi-detection/hooks/AnalysisContext';
 import { useRequiredEpis } from '@/features/epi-detection/hooks/useRequiredEpis';
 import { useHaptics } from '@/hooks/useHaptics';
-import { useImagePicker } from '@/hooks/useImagePicker';
 import { isApiConfigured } from '@/services/env';
 import { colors, spacing } from '@/theme';
 
 export default function HomeScreen() {
   const router = useRouter();
   const { requiredEpis, loading, error, reload } = useRequiredEpis();
-  const { setPendingImage } = useAnalysis();
-  const { pickImage, picking, error: pickerError, clearError } = useImagePicker();
   const { impact } = useHaptics();
 
-  const handleOpenCamera = useCallback(() => {
+  /** Única ação do terminal: abrir a sessão de verificação. */
+  const handleStart = useCallback(() => {
     impact();
     router.push('/camera');
   }, [impact, router]);
-
-  const handlePickImage = useCallback(async () => {
-    const uri = await pickImage();
-    if (uri) {
-      setPendingImage({ uri, source: 'gallery' });
-      router.push('/preview');
-    }
-  }, [pickImage, router, setPendingImage]);
 
   if (loading) {
     return (
@@ -85,17 +74,9 @@ export default function HomeScreen() {
               <View style={styles.actions}>
                 <Button
                   label={APP_MESSAGES.home.startButton}
-                  icon="camera"
+                  icon="shield-search"
                   size="large"
-                  onPress={handleOpenCamera}
-                  disabled={picking}
-                />
-                <Button
-                  label={APP_MESSAGES.home.galleryButton}
-                  icon="image-multiple-outline"
-                  variant="secondary"
-                  onPress={() => void handlePickImage()}
-                  loading={picking}
+                  onPress={handleStart}
                 />
                 <Text variant="caption" color={colors.slate[400]} align="center">
                   {APP_MESSAGES.home.startHint}
@@ -110,19 +91,6 @@ export default function HomeScreen() {
               </View>
             )}
           </Card>
-
-          {pickerError ? (
-            <Card variant="outlined">
-              <ErrorState error={pickerError} onRetry={clearError} compact />
-            </Card>
-          ) : null}
-
-          <Button
-            label={APP_MESSAGES.home.historyButton}
-            icon="history"
-            variant="ghost"
-            onPress={() => router.push('/history')}
-          />
         </View>
       </ScrollView>
 

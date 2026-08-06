@@ -9,24 +9,25 @@ import { Screen, ScreenHeader, StepIndicator } from '@/components/layout';
 import { Text } from '@/components/ui';
 import { APP_MESSAGES } from '@/constants/messages';
 import { useAnalysis } from '@/features/epi-detection/hooks/AnalysisContext';
+import { useRequiredEpis } from '@/features/epi-detection/hooks/useRequiredEpis';
 import { useCameraAvailability } from '@/hooks/useCameraAvailability';
 import { useHaptics } from '@/hooks/useHaptics';
-import { useImagePicker } from '@/hooks/useImagePicker';
 import { colors, radii, spacing } from '@/theme';
 
 export default function CameraScreen() {
   const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
   const availability = useCameraAvailability();
-  const { setPendingImage } = useAnalysis();
-  const { pickImage, picking } = useImagePicker();
+  const { requiredEpis } = useRequiredEpis();
+  const { analyze, status } = useAnalysis();
   const { impact } = useHaptics();
 
   const cameraRef = useRef<CameraView>(null);
-  const [facing, setFacing] = useState<CameraType>('back');
+  const [facing, setFacing] = useState<CameraType>('front');
   const [isCameraReady, setIsCameraReady] = useState(false);
-  const [capturing, setCapturing] = useState(false);
   const [captureFailed, setCaptureFailed] = useState(false);
+
+  const isAnalyzing = status === 'analyzing';
 
   const goBack = useCallback(() => {
     if (router.canGoBack()) {
@@ -36,12 +37,12 @@ export default function CameraScreen() {
     router.replace('/');
   }, [router]);
 
+  /** Captura e analisa em sequência, sem etapa de confirmação. */
   const handleCapture = useCallback(async () => {
-    if (!cameraRef.current || capturing) {
+    if (!cameraRef.current || isAnalyzing) {
       return;
     }
 
-    setCapturing(true);
     setCaptureFailed(false);
 
     try {
@@ -50,28 +51,31 @@ export default function CameraScreen() {
         setCaptureFailed(true);
         return;
       }
-
       impact();
-      setPendingImage({ uri: photo.uri, source: 'camera' });
-      router.push('/preview');
     } catch {
       setCaptureFailed(true);
-    } finally {
-      setCapturing(false);
+      return;
     }
-  }, [capturing, impact, router, setPendingImage]);
 
-  const handleOpenGallery = useCallback(async () => {
-    const uri = await pickImage();
-    if (uri) {
-      setPendingImage({ uri, source: 'gallery' });
-      router.push('/preview');
+    const result = await analyze(requiredEpis);
+    if (result) {
+      router.replace('/result');
     }
-  }, [pickImage, router, setPendingImage]);
+  }, [analyze, impact, isAnalyzing, requiredEpis, router]);
 
   const renderContent = () => {
     if (availability === 'checking' || !permission) {
       return <LoadingState tone="dark" />;
+    }
+
+    if (isAnalyzing) {
+      return (
+        <LoadingState
+          tone="dark"
+          message={APP_MESSAGES.scan.analyzing}
+          hint={APP_MESSAGES.scan.analyzingHint}
+        />
+      );
     }
 
     if (availability === 'unavailable') {
@@ -82,15 +86,7 @@ export default function CameraScreen() {
           description={APP_MESSAGES.camera.unavailableDescription}
           tone="warning"
           appearance="dark"
-          actions={[
-            {
-              label: APP_MESSAGES.home.galleryButton,
-              onPress: () => void handleOpenGallery(),
-              icon: 'image-multiple-outline',
-              loading: picking,
-            },
-            { label: APP_MESSAGES.common.back, onPress: goBack, variant: 'secondary' },
-          ]}
+          actions={[{ label: APP_MESSAGES.common.back, onPress: goBack, variant: 'secondary' }]}
         />
       );
     }
@@ -125,13 +121,7 @@ export default function CameraScreen() {
                   onPress: () => void Linking.openSettings(),
                   icon: 'cog-outline',
                 },
-            {
-              label: APP_MESSAGES.home.galleryButton,
-              onPress: () => void handleOpenGallery(),
-              variant: 'secondary',
-              icon: 'image-multiple-outline',
-              loading: picking,
-            },
+            { label: APP_MESSAGES.common.back, onPress: goBack, variant: 'secondary' },
           ]}
         />
       );
@@ -146,12 +136,12 @@ export default function CameraScreen() {
             facing={facing}
             onCameraReady={() => setIsCameraReady(true)}
           />
-          <ScanFrame active={isCameraReady && !capturing} />
+          <ScanFrame active={isCameraReady} />
 
           <View style={styles.hintWrapper} pointerEvents="none">
             <View style={styles.hintBubble}>
               <Text variant="captionStrong" color={colors.white} align="center">
-                {capturing ? APP_MESSAGES.camera.capturing : APP_MESSAGES.camera.frameHint}
+                {APP_MESSAGES.camera.frameHint}
               </Text>
             </View>
           </View>
@@ -171,9 +161,8 @@ export default function CameraScreen() {
         <CaptureControls
           onCapture={() => void handleCapture()}
           onFlip={() => setFacing((current) => (current === 'back' ? 'front' : 'back'))}
-          onOpenGallery={() => void handleOpenGallery()}
-          capturing={capturing}
-          disabled={!isCameraReady || picking}
+          capturing={isAnalyzing}
+          disabled={!isCameraReady}
         />
       </>
     );
