@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { ConfidenceBar, Text } from '@/components/ui';
 import { getEpiById } from '@/constants/epiCatalog';
+import { APP_MESSAGES } from '@/constants/messages';
 import { colors, radii, spacing } from '@/theme';
 import { formatConfidence } from '@/utils';
 
@@ -11,17 +12,48 @@ import type { DetectedEpi } from '../types';
 export interface EpiChecklistItemProps {
   item: DetectedEpi;
   tone?: 'light' | 'dark';
+  /** Ainda não avaliado: nem detectado, nem ausente. */
+  pending?: boolean;
+  /** Sendo avaliado neste instante. */
+  scanning?: boolean;
 }
 
 /**
  * Linha da lista de EPIs verificados. O estado é comunicado por ícone, texto e
  * cor ao mesmo tempo — nunca apenas por cor.
  */
-export const EpiChecklistItem = ({ item, tone = 'light' }: EpiChecklistItemProps) => {
+export const EpiChecklistItem = ({
+  item,
+  tone = 'light',
+  pending = false,
+  scanning = false,
+}: EpiChecklistItemProps) => {
   const isDark = tone === 'dark';
   const catalogItem = getEpiById(item.id);
-  const accentColor = item.detected ? colors.status.approved : colors.status.rejected;
-  const stateLabel = item.detected ? 'Detectado' : 'Não detectado';
+
+  const accentColor = scanning
+    ? colors.accent
+    : pending
+      ? colors.slate[400]
+      : item.detected
+        ? colors.status.approved
+        : colors.status.rejected;
+
+  const stateLabel = scanning
+    ? APP_MESSAGES.scan.analyzing
+    : pending
+      ? APP_MESSAGES.scan.waiting
+      : item.detected
+        ? APP_MESSAGES.scan.detected
+        : APP_MESSAGES.scan.notDetected;
+
+  const stateIcon = scanning
+    ? 'timer-sand'
+    : pending
+      ? 'circle-outline'
+      : item.detected
+        ? 'check-circle'
+        : 'close-circle';
 
   return (
     <View
@@ -48,11 +80,7 @@ export const EpiChecklistItem = ({ item, tone = 'light' }: EpiChecklistItemProps
           <Text variant="bodyStrong" color={isDark ? colors.white : colors.slate[800]}>
             {item.label}
           </Text>
-          <MaterialCommunityIcons
-            name={item.detected ? 'check-circle' : 'close-circle'}
-            size={18}
-            color={accentColor}
-          />
+          <MaterialCommunityIcons name={stateIcon} size={18} color={accentColor} />
         </View>
 
         <Text variant="micro" color={isDark ? colors.slate[400] : colors.slate[500]}>

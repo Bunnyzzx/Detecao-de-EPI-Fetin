@@ -39,10 +39,6 @@ export class MockEpiDetectionService implements EpiDetectionService {
   }
 
   async analyzeImage(input: AnalyzeImageInput): Promise<EpiDetectionResult> {
-    if (!input.imageUri) {
-      throw new AppError('invalid_image', 'Nenhuma imagem foi informada para análise.');
-    }
-
     if (input.requiredItems.length === 0) {
       throw new AppError(
         'invalid_response',
@@ -57,10 +53,8 @@ export class MockEpiDetectionService implements EpiDetectionService {
     const detections = input.requiredItems.map((epiId) => this.buildDetection(epiId, scenario));
 
     return buildDetectionResult({
-      imageUri: input.imageUri,
       requiredItems: input.requiredItems,
       detections,
-      source: input.source,
       engine: 'mock',
       processingTimeMs: Date.now() - startedAt,
     });

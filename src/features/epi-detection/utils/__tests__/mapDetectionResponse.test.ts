@@ -4,9 +4,7 @@ import type { AnalyzeImageInput } from '../../types';
 import { mapDetectionResponse } from '../mapDetectionResponse';
 
 const input: AnalyzeImageInput = {
-  imageUri: 'file:///captura.jpg',
   requiredItems: ['capacete', 'oculos'],
-  source: 'gallery',
 };
 
 describe('mapDetectionResponse', () => {

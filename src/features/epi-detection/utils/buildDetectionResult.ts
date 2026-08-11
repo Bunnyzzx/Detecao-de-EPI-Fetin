@@ -6,7 +6,6 @@ import type {
   BoundingBox,
   DetectedEpi,
   DetectionEngine,
-  DetectionSource,
   EpiDetectionResult,
   EpiId,
 } from '../types';
@@ -22,17 +21,16 @@ export interface RawDetection {
 }
 
 export interface BuildDetectionResultInput {
-  imageUri: string;
   requiredItems: EpiId[];
   detections: RawDetection[];
-  source: DetectionSource;
   engine: DetectionEngine;
   processingTimeMs: number;
   analyzedAt?: string;
   id?: string;
 }
 
-const toDetectedEpi = (detection: RawDetection): DetectedEpi => {
+/** Enriquece uma detecção crua com rótulo e descrição do catálogo. */
+export const toDetectedEpi = (detection: RawDetection): DetectedEpi => {
   const catalogItem = getEpiById(detection.id);
 
   return {
@@ -54,10 +52,8 @@ const average = (values: number[]): number =>
  * a regra de status e o formato do resultado sejam sempre os mesmos.
  */
 export const buildDetectionResult = ({
-  imageUri,
   requiredItems,
   detections,
-  source,
   engine,
   processingTimeMs,
   analyzedAt,
@@ -88,7 +84,6 @@ export const buildDetectionResult = ({
 
   return {
     id: id ?? createId(),
-    imageUri,
     status: resolveDetectionStatus({
       detectedItems,
       missingItems,
@@ -101,7 +96,6 @@ export const buildDetectionResult = ({
     overallConfidence,
     analyzedAt: analyzedAt ?? new Date().toISOString(),
     processingTimeMs: Math.max(0, Math.round(processingTimeMs)),
-    source,
     engine,
   };
 };

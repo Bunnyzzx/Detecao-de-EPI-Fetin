@@ -44,8 +44,8 @@ export const describeError = (error: unknown): ErrorPresentation => {
       };
     case 'invalid_image':
       return {
-        title: APP_MESSAGES.preview.invalidImageTitle,
-        description: APP_MESSAGES.preview.invalidImageDescription,
+        title: APP_MESSAGES.camera.captureErrorTitle,
+        description: APP_MESSAGES.camera.captureErrorDescription,
       };
     case 'device_unsupported':
       return {

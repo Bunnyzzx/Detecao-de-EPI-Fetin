@@ -3,8 +3,4 @@ export * from './Button';
 export * from './Card';
 export * from './ConfidenceBar';
 export * from './IconButton';
-export * from './OptionGroup';
-export * from './SectionHeader';
-export * from './Switch';
 export * from './Text';
-export * from './TextField';
