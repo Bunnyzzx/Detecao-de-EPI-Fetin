@@ -2,9 +2,6 @@ import type { EpiId } from './epi';
 
 export type DetectionStatus = 'approved' | 'warning' | 'rejected';
 
-/** Origem da imagem enviada para análise. */
-export type DetectionSource = 'camera' | 'gallery';
-
 /** Implementação que produziu o resultado — útil para depuração e para a UI. */
 export type DetectionEngine = 'mock' | 'api';
 
@@ -31,7 +28,6 @@ export interface DetectedEpi {
 
 export interface EpiDetectionResult {
   id: string;
-  imageUri: string;
   status: DetectionStatus;
   detectedItems: DetectedEpi[];
   missingItems: DetectedEpi[];
@@ -42,14 +38,11 @@ export interface EpiDetectionResult {
   /** Data/hora em ISO 8601. */
   analyzedAt: string;
   processingTimeMs: number;
-  source: DetectionSource;
   engine: DetectionEngine;
 }
 
 export interface AnalyzeImageInput {
-  imageUri: string;
   requiredItems: EpiId[];
-  source: DetectionSource;
 }
 
 export interface EpiDetectionService {

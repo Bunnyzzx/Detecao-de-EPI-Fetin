@@ -34,24 +34,16 @@ export class ApiEpiDetectionService implements EpiDetectionService {
   }
 
   async analyzeImage(input: AnalyzeImageInput): Promise<EpiDetectionResult> {
-    if (!input.imageUri) {
-      throw new AppError('invalid_image', 'Nenhuma imagem foi informada para análise.');
+    if (input.requiredItems.length === 0) {
+      throw new AppError('invalid_response', 'Nenhum equipamento está ativo para verificação.');
     }
 
     const startedAt = Date.now();
-    const formData = new FormData();
-
-    // O React Native aceita este formato de arquivo em FormData.
-    formData.append('image', {
-      uri: input.imageUri,
-      name: 'captura.jpg',
-      type: 'image/jpeg',
-    } as unknown as Blob);
-    formData.append('requiredItems', input.requiredItems.join(','));
 
     const payload = await requestJson<unknown>(`${this.baseUrl}${this.analyzePath}`, {
       method: 'POST',
-      body: formData,
+      body: JSON.stringify({ requiredItems: input.requiredItems }),
+      headers: { 'Content-Type': 'application/json' },
       ...(this.timeoutMs ? { timeoutMs: this.timeoutMs } : {}),
     });
 

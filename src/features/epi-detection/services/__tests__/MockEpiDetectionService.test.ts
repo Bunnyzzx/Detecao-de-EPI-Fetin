@@ -5,9 +5,7 @@ import type { AnalyzeImageInput } from '../../types';
 import { MockEpiDetectionService } from '../MockEpiDetectionService';
 
 const baseInput: AnalyzeImageInput = {
-  imageUri: 'file:///captura.jpg',
   requiredItems: [...DEFAULT_REQUIRED_EPI_IDS],
-  source: 'camera',
 };
 
 const createService = (forcedScenario: string) =>
@@ -65,12 +63,6 @@ describe('MockEpiDetectionService', () => {
 
     expect(result.requiredItems).toEqual(['capacete', 'colete']);
     expect(result.detectedItems).toHaveLength(2);
-  });
-
-  it('rejeita análise sem imagem', async () => {
-    await expect(
-      createService('conformidade-total').analyzeImage({ ...baseInput, imageUri: '' }),
-    ).rejects.toBeInstanceOf(AppError);
   });
 
   it('rejeita análise sem equipamentos exigidos', async () => {

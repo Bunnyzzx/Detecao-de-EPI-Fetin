@@ -2,8 +2,6 @@ import { buildDetectionResult } from '../buildDetectionResult';
 
 describe('buildDetectionResult', () => {
   const baseInput = {
-    imageUri: 'file:///captura.jpg',
-    source: 'camera' as const,
     engine: 'mock' as const,
     processingTimeMs: 1200,
   };
@@ -89,7 +87,7 @@ describe('buildDetectionResult', () => {
     expect(result.id).toBe('analise-1');
     expect(result.analyzedAt).toBe(analyzedAt);
     expect(result.requiredItems).toEqual(['capacete']);
-    expect(result.source).toBe('camera');
+    expect(result.engine).toBe('mock');
     expect(result.engine).toBe('mock');
   });
 });

@@ -11,11 +11,5 @@ export const DETECTION_THRESHOLDS = {
 
 /** Chaves de armazenamento local. Prefixadas para evitar colisões. */
 export const STORAGE_KEYS = {
-  history: '@epi-fetin/detection-history',
   requiredEpis: '@epi-fetin/required-epis',
-  users: '@epi-fetin/users',
-  adminSession: '@epi-fetin/admin-session',
 } as const;
-
-/** Limite de itens guardados no histórico local. */
-export const HISTORY_LIMIT = 50;
