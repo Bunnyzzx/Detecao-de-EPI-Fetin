@@ -92,7 +92,9 @@ export default function ResultScreen() {
 
           <View style={styles.checklist}>
             {allItems.map((item) => (
-              <EpiChecklistItem key={item.id} item={item} />
+              <View key={item.id} style={styles.checklistCell}>
+                <EpiChecklistItem item={item} />
+              </View>
             ))}
           </View>
 
@@ -113,18 +115,18 @@ export default function ResultScreen() {
 const styles = StyleSheet.create({
   layout: {
     flex: 1,
-    flexDirection: 'row',
+    flexDirection: 'column',
   },
   hero: {
-    width: '38%',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.md,
-    padding: spacing.xl,
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
   },
   heroIcon: {
-    width: 96,
-    height: 96,
+    width: 72,
+    height: 72,
     borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
@@ -134,13 +136,17 @@ const styles = StyleSheet.create({
   },
   heroSubtitle: {
     opacity: 0.92,
-    maxWidth: 320,
+    maxWidth: 460,
   },
+  /** Em retrato a meta fica em linha: economiza altura para a lista de EPIs. */
   heroMeta: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xxs,
-    marginTop: spacing.sm,
-    paddingTop: spacing.md,
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+    marginTop: spacing.xxs,
+    paddingTop: spacing.sm,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.25)',
     alignSelf: 'stretch',
@@ -150,10 +156,19 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     padding: spacing.lg,
   },
+  /**
+   * Duas colunas. Em retrato os sete equipamentos empilhados não caberiam sem
+   * rolagem, e a tela precisa ser lida de uma vez só.
+   */
   checklist: {
     flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignContent: 'center',
     gap: spacing.sm,
-    justifyContent: 'center',
+  },
+  checklistCell: {
+    width: '48.5%',
   },
   centered: {
     flex: 1,

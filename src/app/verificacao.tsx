@@ -166,13 +166,14 @@ export default function VerificationScreen() {
 
           <View style={styles.checklist}>
             {items.map((item) => (
-              <EpiChecklistItem
-                key={item.id}
-                item={item}
-                tone="dark"
-                pending={!isFinished && !item.detected}
-                scanning={item.id === currentItem && state === 'epi_detecting'}
-              />
+              <View key={item.id} style={styles.checklistCell}>
+                <EpiChecklistItem
+                  item={item}
+                  tone="dark"
+                  pending={!isFinished && !item.detected}
+                  scanning={item.id === currentItem && state === 'epi_detecting'}
+                />
+              </View>
             ))}
           </View>
         </View>
@@ -196,13 +197,14 @@ const styles = StyleSheet.create({
   },
   layout: {
     flex: 1,
-    flexDirection: 'row',
+    flexDirection: 'column',
     gap: spacing.md,
     padding: spacing.md,
   },
+  /** Em retrato o visor ocupa a metade de cima, na altura dos olhos. */
   viewport: {
     flex: 1,
-    minWidth: 0,
+    minHeight: 220,
     borderRadius: radii.xxl,
     overflow: 'hidden',
     backgroundColor: colors.scanner.viewport,
@@ -225,8 +227,7 @@ const styles = StyleSheet.create({
     borderColor: colors.overlayBorder,
   },
   sidebar: {
-    width: 300,
-    gap: spacing.md,
+    gap: spacing.sm,
   },
   progressBlock: {
     gap: spacing.sm,
@@ -236,8 +237,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  /** Duas colunas, pelo mesmo motivo da tela de resultado. */
   checklist: {
-    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.sm,
+  },
+  checklistCell: {
+    width: '48.5%',
   },
 });
