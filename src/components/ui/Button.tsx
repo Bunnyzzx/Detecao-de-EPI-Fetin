@@ -10,11 +10,19 @@ import {
 } from 'react-native';
 
 import type { MaterialCommunityIconName } from '@/features/epi-detection/types';
+import { useTerminalMetrics } from '@/hooks/useTerminalMetrics';
 import { colors, radii, shadows, spacing, MIN_TOUCH_TARGET, TERMINAL_TOUCH_TARGET } from '@/theme';
 
 import { Text } from './Text';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'success' | 'danger' | 'dark';
+export type ButtonVariant =
+  | 'primary'
+  | 'secondary'
+  | 'outline'
+  | 'ghost'
+  | 'success'
+  | 'danger'
+  | 'dark';
 /** `terminal` é a ação principal do tablet: alta, larga e com texto grande. */
 export type ButtonSize = 'medium' | 'large' | 'terminal';
 
@@ -49,6 +57,13 @@ const VARIANTS: Record<ButtonVariant, VariantStyle> = {
     pressedBackground: colors.slate[100],
     foreground: colors.slate[800],
     border: colors.slate[200],
+  },
+  /** Ação secundária que ainda precisa de presença: contorno na cor primária. */
+  outline: {
+    background: colors.white,
+    pressedBackground: colors.primarySoft,
+    foreground: colors.primary,
+    border: colors.primary,
   },
   ghost: {
     background: colors.transparent,
@@ -86,13 +101,14 @@ export const Button = ({
   accessibilityLabel,
   ...rest
 }: ButtonProps) => {
+  const metrics = useTerminalMetrics();
   const palette = VARIANTS[variant];
   const isInteractionBlocked = Boolean(disabled) || loading;
   const isTerminal = size === 'terminal';
   const iconElement = icon ? (
     <MaterialCommunityIcons
       name={icon}
-      size={isTerminal ? 30 : size === 'large' ? 22 : 20}
+      size={isTerminal ? metrics.buttonIconSize : size === 'large' ? 22 : 20}
       color={palette.foreground}
     />
   ) : null;
@@ -106,11 +122,12 @@ export const Button = ({
       style={({ pressed }) => [
         styles.base,
         isTerminal ? styles.terminal : size === 'large' ? styles.large : styles.medium,
+        isTerminal ? { minHeight: metrics.buttonHeight } : null,
         fullWidth ? styles.fullWidth : null,
         {
           backgroundColor: pressed ? palette.pressedBackground : palette.background,
           borderColor: palette.border ?? colors.transparent,
-          borderWidth: palette.border ? 1 : 0,
+          borderWidth: palette.border ? (variant === 'outline' ? 2 : 1) : 0,
         },
         palette.shadow,
         pressed ? styles.pressed : null,
@@ -125,9 +142,13 @@ export const Button = ({
         <View style={styles.content}>
           {iconPosition === 'left' ? iconElement : null}
           <Text
-            variant={isTerminal ? 'title' : size === 'large' ? 'subheading' : 'bodyStrong'}
+            variant={
+              isTerminal ? metrics.buttonLabel : size === 'large' ? 'subheading' : 'bodyStrong'
+            }
             color={palette.foreground}
-            numberOfLines={1}
+            numberOfLines={2}
+            align="center"
+            style={isTerminal ? styles.terminalLabel : null}
           >
             {label}
           </Text>
@@ -157,13 +178,20 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xl,
     borderRadius: radii.xxl,
   },
+  /** Caixa alta: o rótulo é lido de relance, a alguns metros do terminal. */
+  terminalLabel: {
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    flexShrink: 1,
+  },
   fullWidth: {
     alignSelf: 'stretch',
   },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    justifyContent: 'center',
+    gap: spacing.md,
   },
   pressed: {
     transform: [{ scale: 0.985 }],

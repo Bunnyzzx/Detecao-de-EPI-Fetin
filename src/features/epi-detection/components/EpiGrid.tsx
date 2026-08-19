@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { Text } from '@/components/ui';
 import { EPI_CATALOG } from '@/constants/epiCatalog';
 import { APP_MESSAGES } from '@/constants/messages';
+import { useTerminalMetrics } from '@/hooks/useTerminalMetrics';
 import { colors, radii, spacing } from '@/theme';
 
 import type { EpiId } from '../types';
@@ -15,8 +16,10 @@ export interface EpiGridProps {
   showInactive?: boolean;
 }
 
-/** Grade "N equipamentos ativos para verificação" da tela inicial. */
+/** Grade "N equipamentos exigidos" da tela inicial. */
 export const EpiGrid = ({ activeIds, showInactive = true }: EpiGridProps) => {
+  const metrics = useTerminalMetrics();
+
   const items = showInactive
     ? EPI_CATALOG
     : EPI_CATALOG.filter((item) => activeIds.includes(item.id));
@@ -27,15 +30,17 @@ export const EpiGrid = ({ activeIds, showInactive = true }: EpiGridProps) => {
       ? APP_MESSAGES.home.equipmentCountSuffixSingular
       : APP_MESSAGES.home.equipmentCountSuffix;
 
+  const cellWidth = `${100 / metrics.epiColumns}%` as const;
+
   return (
     <View style={styles.container}>
-      <Text variant="overline" color={colors.slate[500]}>
+      <Text variant={metrics.sectionLabel} color={colors.primaryDark} align="center">
         {`${activeCount} ${countLabel}`}
       </Text>
 
       <View style={styles.grid}>
         {items.map((item) => (
-          <View key={item.id} style={styles.cell}>
+          <View key={item.id} style={[styles.cell, { width: cellWidth }]}>
             <EpiGridItem item={item} active={activeIds.includes(item.id)} />
           </View>
         ))}
@@ -45,22 +50,24 @@ export const EpiGrid = ({ activeIds, showInactive = true }: EpiGridProps) => {
 };
 
 const styles = StyleSheet.create({
+  /**
+   * Azul bem claro: marca a região como "os equipamentos exigidos" sem
+   * competir com o botão de ação, que é o azul forte da tela.
+   */
   container: {
-    gap: spacing.md,
+    gap: spacing.lg,
     padding: spacing.lg,
-    backgroundColor: colors.slate[50],
-    borderRadius: radii.xl,
+    backgroundColor: colors.primarySoft,
+    borderRadius: radii.xxl,
     borderWidth: 1,
-    borderColor: colors.slate[100],
+    borderColor: colors.primaryOn,
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    rowGap: spacing.sm,
+    rowGap: spacing.md,
   },
   cell: {
-    // Três colunas mantêm os rótulos legíveis mesmo em telas de 320 px.
-    width: '33.33%',
-    paddingRight: spacing.sm,
+    paddingHorizontal: spacing.xs,
   },
 });

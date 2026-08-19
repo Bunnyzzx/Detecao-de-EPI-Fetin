@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { Text } from '@/components/ui';
 import { APP_MESSAGES } from '@/constants/messages';
+import { useTerminalMetrics } from '@/hooks/useTerminalMetrics';
 import { colors, radii, spacing } from '@/theme';
 
 export type FlowStep = 'start' | 'identification' | 'verification' | 'access';
@@ -21,6 +22,7 @@ export interface StepIndicatorProps {
 
 /** Rodapé "1 Início · 2 Verificação · 3 Acesso" do protótipo. */
 export const StepIndicator = ({ currentStep, tone = 'light' }: StepIndicatorProps) => {
+  const metrics = useTerminalMetrics();
   const currentIndex = STEPS.findIndex((step) => step.key === currentStep);
   const isDark = tone === 'dark';
 
@@ -46,19 +48,32 @@ export const StepIndicator = ({ currentStep, tone = 'light' }: StepIndicatorProp
 
         return (
           <View key={step.key} style={styles.step}>
-            <View style={[styles.circle, { backgroundColor: circleColor }]}>
+            <View
+              style={[
+                styles.circle,
+                {
+                  backgroundColor: circleColor,
+                  width: metrics.stepCircleSize,
+                  height: metrics.stepCircleSize,
+                },
+              ]}
+            >
               {isCompleted ? (
-                <MaterialCommunityIcons name="check" size={13} color={colors.white} />
+                <MaterialCommunityIcons
+                  name="check"
+                  size={metrics.stepCircleSize * 0.62}
+                  color={colors.white}
+                />
               ) : (
                 <Text
-                  variant="micro"
+                  variant={metrics.stepLabel}
                   color={isActive ? colors.white : isDark ? colors.slate[400] : colors.slate[500]}
                 >
                   {index + 1}
                 </Text>
               )}
             </View>
-            <Text variant="micro" color={labelColor}>
+            <Text variant={metrics.stepLabel} color={labelColor}>
               {step.label}
             </Text>
             {index < STEPS.length - 1 ? (
@@ -95,8 +110,6 @@ const styles = StyleSheet.create({
     gap: spacing.xs + 2,
   },
   circle: {
-    width: 20,
-    height: 20,
     borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',

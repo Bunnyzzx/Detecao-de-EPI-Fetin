@@ -18,6 +18,57 @@ const fontFamilyMedium = Platform.select({
 });
 
 export const typography = {
+  /**
+   * Os tokens `*Large` e `hero` existem para o tablet operado em pé, onde a
+   * pessoa lê a tela a um ou dois metros de distância. Não substituem os
+   * tamanhos originais: as duas escalas convivem, escolhidas por
+   * `useTerminalMetrics`.
+   */
+  hero: {
+    fontFamily,
+    fontSize: 46,
+    lineHeight: 54,
+    fontWeight: '700',
+  },
+  displayLarge: {
+    fontFamily,
+    fontSize: 38,
+    lineHeight: 46,
+    fontWeight: '700',
+  },
+  headingLarge: {
+    fontFamily,
+    fontSize: 26,
+    lineHeight: 34,
+    fontWeight: '700',
+  },
+  subheadingLarge: {
+    fontFamily: fontFamilyMedium,
+    fontSize: 21,
+    lineHeight: 28,
+    fontWeight: '600',
+  },
+  bodyLarge: {
+    fontFamily,
+    fontSize: 18,
+    lineHeight: 26,
+    fontWeight: '400',
+  },
+  captionLarge: {
+    fontFamily,
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: '400',
+  },
+  overlineLarge: {
+    fontFamily: fontFamilyMedium,
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+
   display: {
     fontFamily,
     fontSize: 32,
