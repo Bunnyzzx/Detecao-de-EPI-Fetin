@@ -3,18 +3,20 @@ import { useRouter } from 'expo-router';
 import { useCallback, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { CameraViewport, FaceGuide } from '@/components/camera';
+import { CameraViewport } from '@/components/camera';
 import { Screen, ScreenHeader, StepIndicator } from '@/components/layout';
 import { Button, Text } from '@/components/ui';
 import { APP_MESSAGES } from '@/constants/messages';
 import { useVerificationSession } from '@/features/verification-session/hooks/VerificationSessionContext';
 import { useHaptics } from '@/hooks/useHaptics';
+import { useTerminalMetrics } from '@/hooks/useTerminalMetrics';
 import { colors, radii, spacing } from '@/theme';
 
 export default function IdentificationScreen() {
   const router = useRouter();
   const { snapshot, startFaceRecognition, cancel, reset } = useVerificationSession();
   const { impact } = useHaptics();
+  const metrics = useTerminalMetrics();
 
   const { state } = snapshot;
   const isScanning = state === 'face_scanning';
@@ -61,11 +63,10 @@ export default function IdentificationScreen() {
         {/*
           O visor nunca desmonta, nem quando ninguém é identificado: é olhando
           para ele que a pessoa corrige posição, distância e enquadramento
-          antes de tentar de novo.
+          antes de tentar de novo. Sem moldura sobreposta — a orientação é
+          dada por texto, abaixo.
         */}
-        <CameraViewport style={needsRetry ? styles.viewportCompact : styles.viewport}>
-          <FaceGuide active={isScanning} />
-        </CameraViewport>
+        <CameraViewport style={needsRetry ? styles.viewportCompact : styles.viewport} />
 
         {needsRetry ? (
           <View style={styles.guidance}>
@@ -115,16 +116,13 @@ export default function IdentificationScreen() {
           </View>
         ) : (
           <View style={styles.statusBlock}>
-            {isScanning ? (
-              <View style={[styles.statusBanner, styles.statusBannerActive]}>
-                <Text variant="heading" color={colors.white} align="center">
-                  {APP_MESSAGES.face.scanning}
-                </Text>
-              </View>
-            ) : null}
-
-            <Text variant="subheading" color={colors.slate[300]} align="center">
-              {isScanning ? APP_MESSAGES.face.scanningHint : APP_MESSAGES.face.instruction}
+            <Text variant={metrics.instruction} color={colors.white} align="center">
+              {isScanning ? APP_MESSAGES.face.scanning : APP_MESSAGES.face.instruction}
+            </Text>
+            <Text variant={metrics.instructionDetail} color={colors.slate[400]} align="center">
+              {isScanning
+                ? APP_MESSAGES.face.scanningHint
+                : APP_MESSAGES.face.instructionDetail}
             </Text>
           </View>
         )}
@@ -171,17 +169,8 @@ const styles = StyleSheet.create({
     minHeight: 200,
   },
   statusBlock: {
-    gap: spacing.md,
-  },
-  statusBanner: {
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radii.xl,
-    borderWidth: 1,
-  },
-  statusBannerActive: {
-    backgroundColor: colors.overlayLight,
-    borderColor: colors.accent,
+    gap: spacing.sm,
+    paddingHorizontal: spacing.sm,
   },
   guidance: {
     gap: spacing.sm,

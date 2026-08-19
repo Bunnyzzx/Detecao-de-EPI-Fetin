@@ -10,12 +10,14 @@ import { APP_MESSAGES } from '@/constants/messages';
 import { EpiGrid } from '@/features/epi-detection/components';
 import { useRequiredEpis } from '@/features/epi-detection/hooks/useRequiredEpis';
 import { useHaptics } from '@/hooks/useHaptics';
+import { useTerminalMetrics } from '@/hooks/useTerminalMetrics';
 import { colors, radii, spacing } from '@/theme';
 
 export default function HomeScreen() {
   const router = useRouter();
   const { requiredEpis, loading, error, reload } = useRequiredEpis();
   const { impact } = useHaptics();
+  const metrics = useTerminalMetrics();
 
   /** Única ação do terminal: começar pela identificação do funcionário. */
   const handleStart = useCallback(() => {
@@ -45,14 +47,25 @@ export default function HomeScreen() {
     <Screen edges={['top', 'left', 'right']}>
       <View style={styles.body}>
         <View style={styles.header}>
-          <View style={styles.emblem}>
-            <MaterialCommunityIcons name="hard-hat" size={56} color={colors.primary} />
+          <View
+            style={[styles.emblem, { width: metrics.emblemSize, height: metrics.emblemSize }]}
+          >
+            <MaterialCommunityIcons
+              name="hard-hat"
+              size={metrics.emblemIconSize}
+              color={colors.primary}
+            />
           </View>
 
-          <Text variant="display" color={colors.slate[900]} align="center">
+          <Text variant={metrics.screenTitle} color={colors.slate[900]} align="center">
             {APP_MESSAGES.home.title}
           </Text>
-          <Text variant="body" color={colors.slate[500]} align="center" style={styles.subtitle}>
+          <Text
+            variant={metrics.screenSubtitle}
+            color={colors.slate[500]}
+            align="center"
+            style={styles.subtitle}
+          >
             {APP_MESSAGES.home.subtitle}
           </Text>
         </View>
@@ -87,29 +100,31 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   body: {
     flex: 1,
-    gap: spacing.lg,
-    padding: spacing.lg,
-    justifyContent: 'space-between',
+    gap: spacing.xl,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xl,
   },
   header: {
     alignItems: 'center',
     gap: spacing.sm,
-    paddingTop: spacing.lg,
   },
   emblem: {
-    width: 104,
-    height: 104,
     borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.primarySoft,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
   subtitle: {
-    maxWidth: 420,
+    maxWidth: 520,
   },
+  /**
+   * A grade toma o espaço que sobra entre o cabeçalho e o botão, centrada.
+   * É o que evita a faixa vazia no meio da tela em telas altas.
+   */
   equipment: {
-    flexShrink: 1,
+    flex: 1,
     justifyContent: 'center',
   },
   centered: {

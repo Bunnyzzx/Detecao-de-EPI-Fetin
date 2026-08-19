@@ -86,3 +86,41 @@ describe('tela de preparação para EPI', () => {
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/verificacao'));
   });
 });
+
+describe('tela de preparação — sair', () => {
+  it('oferece a saída ao lado da ação principal', async () => {
+    const { getByText } = await renderAfterIdentification();
+
+    expect(getByText(APP_MESSAGES.preparation.startButton)).toBeTruthy();
+    expect(getByText(APP_MESSAGES.preparation.exitButton)).toBeTruthy();
+  });
+
+  it('retorna para a tela inicial', async () => {
+    const { getByText } = await renderAfterIdentification();
+
+    await pressAndSettle(getByText(APP_MESSAGES.preparation.exitButton));
+
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/'));
+  });
+
+  it('não inicia a verificação de EPI ao sair', async () => {
+    const { getByText } = await renderAfterIdentification();
+
+    await pressAndSettle(getByText(APP_MESSAGES.preparation.exitButton));
+
+    expect(mockReplace).not.toHaveBeenCalledWith('/verificacao');
+  });
+
+  it('limpa a sessão: o funcionário anterior não permanece', async () => {
+    const { getByText, queryByText } = await renderAfterIdentification();
+
+    await pressAndSettle(getByText(APP_MESSAGES.preparation.exitButton));
+
+    // Sem funcionário na sessão, a tela volta a exigir identificação.
+    await waitFor(() =>
+      expect(queryByText(APP_MESSAGES.preparation.missingEmployeeTitle)).toBeTruthy(),
+    );
+    expect(queryByText('Caio de Castro Yarouhas')).toBeNull();
+    expect(queryByText(APP_MESSAGES.preparation.startButton)).toBeNull();
+  });
+});

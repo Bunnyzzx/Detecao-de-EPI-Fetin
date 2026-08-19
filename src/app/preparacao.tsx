@@ -10,12 +10,14 @@ import { APP_MESSAGES } from '@/constants/messages';
 import { useVerificationSession } from '@/features/verification-session/hooks/VerificationSessionContext';
 import { hasIdentifiedEmployee } from '@/features/verification-session/machine/sessionMachine';
 import { useHaptics } from '@/hooks/useHaptics';
+import { useTerminalMetrics } from '@/hooks/useTerminalMetrics';
 import { colors, radii, spacing } from '@/theme';
 
 export default function PreparationScreen() {
   const router = useRouter();
   const { snapshot, prepareEpiVerification, reset } = useVerificationSession();
   const { impact } = useHaptics();
+  const metrics = useTerminalMetrics();
 
   const { employee } = snapshot;
   const isIdentified = hasIdentifiedEmployee(snapshot);
@@ -61,53 +63,78 @@ export default function PreparationScreen() {
 
   return (
     <Screen edges={['top', 'left', 'right']}>
-      <View style={styles.body}>
-        <View style={styles.identityCard}>
-          <View style={styles.identityHeader}>
-            <MaterialCommunityIcons
-              name="check-circle"
-              size={30}
-              color={colors.status.approvedDark}
-            />
-            <Text variant="subheading" color={colors.status.approvedText}>
-              {APP_MESSAGES.preparation.title}
-            </Text>
-          </View>
-
-          <Text variant="display" color={colors.slate[900]} align="center">
-            {employee.nome}
-          </Text>
-
-          <View style={styles.identityMeta}>
-            <Text variant="bodyStrong" color={colors.slate[600]}>
-              {`${APP_MESSAGES.face.registrationLabel}: ${employee.matricula}`}
-            </Text>
-            <Text variant="bodyStrong" color={colors.slate[600]}>
-              {`${APP_MESSAGES.face.sectorLabel}: ${employee.setor}`}
-            </Text>
-          </View>
+      {/*
+        Bloco verde sólido e generoso: é a confirmação de que o reconhecimento
+        deu certo, e precisa ser lida à distância antes de qualquer outra coisa.
+      */}
+      <View style={styles.identityCard}>
+        <View
+          style={[
+            styles.confirmationBadge,
+            { width: metrics.confirmationIconSize * 1.5, height: metrics.confirmationIconSize * 1.5 },
+          ]}
+        >
+          <MaterialCommunityIcons
+            name="check"
+            size={metrics.confirmationIconSize}
+            color={colors.status.approvedDark}
+          />
         </View>
 
+        <Text variant={metrics.employeeMeta} color={colors.white} align="center">
+          {APP_MESSAGES.preparation.title}
+        </Text>
+
+        <Text variant={metrics.employeeName} color={colors.white} align="center">
+          {employee.nome}
+        </Text>
+
+        <View style={styles.identityMeta}>
+          <Text variant={metrics.employeeMeta} color={colors.white} align="center">
+            {`${APP_MESSAGES.face.registrationLabel}: ${employee.matricula}`}
+          </Text>
+          <Text variant={metrics.employeeMeta} color={colors.white} align="center">
+            {`${APP_MESSAGES.face.sectorLabel}: ${employee.setor}`}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.body}>
         <View style={styles.positionBlock}>
           <View style={styles.positionFigure}>
-            <MaterialCommunityIcons name="human-handsdown" size={92} color={colors.primary} />
+            <MaterialCommunityIcons
+              name="human-handsdown"
+              size={metrics.figureIconSize}
+              color={colors.primary}
+            />
             <View style={styles.floorMark} />
           </View>
 
-          <Text variant="heading" color={colors.slate[900]} align="center">
+          <Text variant={metrics.instruction} color={colors.slate[900]} align="center">
             {APP_MESSAGES.preparation.positionInstruction}
           </Text>
-          <Text variant="body" color={colors.slate[500]} align="center">
+          <Text variant={metrics.instructionDetail} color={colors.slate[500]} align="center">
             {APP_MESSAGES.preparation.positionDetail}
           </Text>
         </View>
 
-        <Button
-          label={APP_MESSAGES.preparation.startButton}
-          icon="shield-search"
-          size="terminal"
-          onPress={handleStart}
-        />
+        <View style={styles.actions}>
+          <Button
+            label={APP_MESSAGES.preparation.startButton}
+            icon="shield-search"
+            size="terminal"
+            onPress={handleStart}
+          />
+
+          {/* Saída para quem desiste após ser identificado. */}
+          <Button
+            label={APP_MESSAGES.preparation.exitButton}
+            icon="logout"
+            variant="outline"
+            size="terminal"
+            onPress={goHome}
+          />
+        </View>
       </View>
 
       <StepIndicator currentStep="verification" />
@@ -119,26 +146,28 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
     gap: spacing.lg,
-    padding: spacing.lg,
-    justifyContent: 'space-between',
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xl,
   },
   identityCard: {
     alignItems: 'center',
     gap: spacing.sm,
-    padding: spacing.lg,
-    borderRadius: radii.xxl,
-    backgroundColor: colors.status.approvedSoft,
-    borderWidth: 1,
-    borderColor: colors.status.approved,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.xxxl,
+    backgroundColor: colors.status.approvedDark,
   },
-  identityHeader: {
-    flexDirection: 'row',
+  confirmationBadge: {
+    borderRadius: radii.pill,
     alignItems: 'center',
-    gap: spacing.sm,
+    justifyContent: 'center',
+    backgroundColor: colors.white,
+    marginBottom: spacing.sm,
   },
   identityMeta: {
     alignItems: 'center',
     gap: spacing.xxs,
+    marginTop: spacing.xs,
   },
   positionBlock: {
     flex: 1,
@@ -149,7 +178,10 @@ const styles = StyleSheet.create({
   },
   positionFigure: {
     alignItems: 'center',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  actions: {
+    gap: spacing.md,
   },
   /** Marcação do chão: a mesma referência física que o funcionário procura. */
   floorMark: {

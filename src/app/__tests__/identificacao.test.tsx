@@ -129,10 +129,11 @@ describe('identificação facial — funcionário não identificado', () => {
     expect(getByTestId('camera-viewport')).toBeTruthy();
   });
 
-  it('mantém o guia facial visível', async () => {
-    const { getByTestId } = await renderUnknown();
+  it('não desenha moldura sobre a câmera', async () => {
+    const { queryByTestId } = await renderUnknown();
 
-    expect(getByTestId('face-guide')).toBeTruthy();
+    // O visor fica limpo: a orientação é dada por texto, não por contorno.
+    expect(queryByTestId('face-guide')).toBeNull();
   });
 
   it('oferece tentar novamente e, em segundo plano, voltar ao início', async () => {

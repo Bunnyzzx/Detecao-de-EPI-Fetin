@@ -62,7 +62,8 @@ export const APP_MESSAGES = {
 
   face: {
     title: 'Identificação Facial',
-    instruction: 'Posicione seu rosto dentro da área indicada.',
+    instruction: 'Posicione seu rosto em frente à câmera.',
+    instructionDetail: 'Mantenha-se na posição e olhe diretamente para a câmera.',
     startButton: 'Iniciar Reconhecimento',
     scanning: 'Identificando funcionário...',
     scanningHint: 'Mantenha o rosto posicionado e olhe para a câmera.',
@@ -98,6 +99,8 @@ export const APP_MESSAGES = {
     positionDetail:
       'Permaneça na posição indicada e certifique-se de que todo o corpo esteja visível para a câmera.',
     startButton: 'Iniciar Verificação de EPI',
+    exitButton: 'Sair',
+    exitHint: 'Voltar ao início',
     missingEmployeeTitle: 'Nenhum funcionário identificado',
     missingEmployeeDescription: 'Faça a identificação facial antes de verificar os equipamentos.',
   },
