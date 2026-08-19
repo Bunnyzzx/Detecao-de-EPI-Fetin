@@ -4,28 +4,40 @@ import { useCallback } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { StateView } from '@/components/feedback';
-import { Screen, StepIndicator } from '@/components/layout';
+import { Screen } from '@/components/layout';
 import { Button, Text } from '@/components/ui';
 import { APP_MESSAGES } from '@/constants/messages';
 import { EpiChecklistItem } from '@/features/epi-detection/components';
-import { getStatusPresentation } from '@/features/epi-detection/utils/statusPresentation';
-import { RecognizedPersonCard } from '@/features/verification-session/components';
 import { useVerificationSession } from '@/features/verification-session/hooks/VerificationSessionContext';
-import { colors, radii, spacing } from '@/theme';
-import { formatConfidence } from '@/utils';
+import { useHaptics } from '@/hooks/useHaptics';
+import { colors, spacing } from '@/theme';
 
 export default function ResultScreen() {
   const router = useRouter();
-  const { snapshot, reset } = useVerificationSession();
-  const outcome = snapshot.outcome;
+  const { snapshot, prepareEpiVerification, reset } = useVerificationSession();
+  const { impact } = useHaptics();
 
-  /** Limpa a sessão inteira e devolve o terminal para a próxima pessoa. */
+  const { detection, employee, state } = snapshot;
+  const isApproved = state === 'approved';
+
+  /** Limpa a sessão inteira e devolve o terminal para o próximo funcionário. */
   const goHome = useCallback(() => {
     reset();
     router.replace('/');
   }, [reset, router]);
 
-  if (!outcome) {
+  /**
+   * Repete apenas a análise de EPI. A preparação é aberta aqui, antes de
+   * navegar: limpa o resultado anterior e preserva o funcionário identificado,
+   * de modo que o reconhecimento facial não se repete.
+   */
+  const retryEpi = useCallback(() => {
+    impact();
+    prepareEpiVerification();
+    router.replace('/preparacao');
+  }, [impact, prepareEpiVerification, router]);
+
+  if (!detection) {
     return (
       <Screen>
         <View style={styles.centered}>
@@ -41,125 +53,124 @@ export default function ResultScreen() {
     );
   }
 
-  const { detection, employee, faceConfidence } = outcome;
-  const presentation = getStatusPresentation(detection.status);
-  const isApproved = detection.status === 'approved';
-
-  // Todos os EPIs exigidos, detectados e ausentes, na ordem do catálogo.
+  // Todos os equipamentos exigidos, na ordem do catálogo — não só os ausentes.
   const allItems = [...detection.detectedItems, ...detection.missingItems].sort(
     (first, second) =>
       detection.requiredItems.indexOf(first.id) - detection.requiredItems.indexOf(second.id),
   );
 
-  const missingLabels = detection.missingItems.map((item) => item.label).join(', ');
+  const missingCount = detection.missingItems.length;
+  const rejectionReason =
+    missingCount > 0
+      ? `${APP_MESSAGES.result.rejectedReasonPrefix} ${missingCount} ${
+          missingCount === 1
+            ? APP_MESSAGES.result.rejectedReasonSuffixSingular
+            : APP_MESSAGES.result.rejectedReasonSuffix
+        }`
+      : APP_MESSAGES.result.rejectedLowConfidence;
 
   return (
-    <Screen backgroundColor={colors.slate[50]} edges={['top', 'left', 'right']}>
-      <View style={styles.layout}>
-        <View style={[styles.hero, { backgroundColor: presentation.colorDark }]}>
-          <View style={styles.heroIcon}>
-            <MaterialCommunityIcons
-              name={isApproved ? 'check-circle' : 'close-circle'}
-              size={64}
-              color={colors.white}
-            />
-          </View>
+    <Screen
+      backgroundColor={colors.slate[50]}
+      edges={['top', 'left', 'right']}
+      style={styles.screen}
+    >
+      <View
+        style={[
+          styles.hero,
+          { backgroundColor: isApproved ? colors.status.approvedDark : colors.status.rejectedDark },
+        ]}
+      >
+        <MaterialCommunityIcons
+          name={isApproved ? 'check-circle' : 'close-circle'}
+          size={104}
+          color={colors.white}
+        />
 
-          <Text variant="display" color={colors.white} align="center">
-            {isApproved ? APP_MESSAGES.result.approvedTitle : APP_MESSAGES.result.rejectedTitle}
+        <Text variant="display" color={colors.white} align="center">
+          {isApproved ? APP_MESSAGES.result.approvedTitle : APP_MESSAGES.result.rejectedTitle}
+        </Text>
+
+        {employee ? (
+          <Text variant="heading" color={colors.white} align="center" numberOfLines={2}>
+            {employee.nome}
           </Text>
+        ) : null}
 
-          <Text variant="body" color={colors.white} align="center" style={styles.heroSubtitle}>
-            {isApproved
-              ? APP_MESSAGES.result.approvedSubtitle
-              : missingLabels
-                ? `${APP_MESSAGES.result.rejectedReasonPrefix} ${missingLabels}.`
-                : APP_MESSAGES.result.rejectedNoDetection}
+        {isApproved ? null : (
+          <Text variant="body" color={colors.white} align="center" style={styles.reason}>
+            {rejectionReason}
           </Text>
+        )}
+      </View>
 
-          <View style={styles.heroMeta}>
-            <Text variant="captionStrong" color={colors.white}>
-              {`${detection.detectedItems.length}/${detection.requiredItems.length} ${APP_MESSAGES.result.verifiedSuffix}`}
-            </Text>
-            <Text variant="micro" color={colors.white}>
-              {`${APP_MESSAGES.result.confidenceLabel}: ${formatConfidence(detection.overallConfidence)}`}
-            </Text>
-          </View>
+      <View style={styles.panel}>
+        <View style={styles.checklist}>
+          {allItems.map((item) => (
+            <View key={item.id} style={styles.checklistCell}>
+              <EpiChecklistItem item={item} />
+            </View>
+          ))}
         </View>
 
-        <View style={styles.panel}>
-          <RecognizedPersonCard employee={employee} confidence={faceConfidence} />
-
-          <View style={styles.checklist}>
-            {allItems.map((item) => (
-              <View key={item.id} style={styles.checklistCell}>
-                <EpiChecklistItem item={item} />
-              </View>
-            ))}
-          </View>
-
+        {isApproved ? (
           <Button
             label={APP_MESSAGES.result.backHomeButton}
             icon="home"
-            size="large"
+            size="terminal"
             onPress={goHome}
           />
-        </View>
+        ) : (
+          <View style={styles.actions}>
+            <Text variant="bodyStrong" color={colors.slate[700]} align="center">
+              {APP_MESSAGES.result.retryQuestion}
+            </Text>
+            <Button
+              label={APP_MESSAGES.result.retryButton}
+              icon="refresh"
+              size="terminal"
+              onPress={retryEpi}
+            />
+            <Button
+              label={APP_MESSAGES.result.exitButton}
+              icon="exit-to-app"
+              variant="secondary"
+              size="large"
+              onPress={goHome}
+            />
+          </View>
+        )}
       </View>
-
-      <StepIndicator currentStep="access" />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  layout: {
-    flex: 1,
-    flexDirection: 'column',
+  screen: {
+    justifyContent: 'flex-start',
   },
+  /**
+   * Metade superior dedicada ao veredito: precisa ser legível a alguns metros,
+   * então ícone e texto vêm grandes e o bloco inteiro é colorido.
+   */
   hero: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
+    paddingVertical: spacing.xl,
   },
-  heroIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: radii.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
-  },
-  heroSubtitle: {
-    opacity: 0.92,
+  reason: {
+    marginTop: spacing.xs,
     maxWidth: 460,
-  },
-  /** Em retrato a meta fica em linha: economiza altura para a lista de EPIs. */
-  heroMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-    marginTop: spacing.xxs,
-    paddingTop: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.25)',
-    alignSelf: 'stretch',
   },
   panel: {
     flex: 1,
     gap: spacing.md,
     padding: spacing.lg,
   },
-  /**
-   * Duas colunas. Em retrato os sete equipamentos empilhados não caberiam sem
-   * rolagem, e a tela precisa ser lida de uma vez só.
-   */
+  /** Duas colunas: os sete equipamentos precisam caber sem rolagem. */
   checklist: {
     flex: 1,
     flexDirection: 'row',
@@ -169,6 +180,9 @@ const styles = StyleSheet.create({
   },
   checklistCell: {
     width: '48.5%',
+  },
+  actions: {
+    gap: spacing.sm,
   },
   centered: {
     flex: 1,

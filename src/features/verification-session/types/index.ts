@@ -1,50 +1,43 @@
 import type { DetectedEpi, EpiDetectionResult, EpiId } from '@/features/epi-detection/types';
 import type { RecognizedEmployee } from '@/features/face-recognition/types';
 
-/** Estados possíveis de uma sessão de verificação no terminal. */
+/**
+ * Estados da sessão do terminal.
+ *
+ * O fluxo tem duas etapas que o funcionário inicia explicitamente: primeiro a
+ * identificação facial, depois — já posicionado na marcação do chão — a
+ * verificação dos equipamentos.
+ */
 export type SessionState =
   | 'idle'
-  | 'opening'
   | 'face_scanning'
   | 'face_recognized'
   | 'face_unknown'
+  | 'epi_preparation'
   | 'epi_detecting'
-  | 'completed'
+  | 'approved'
+  | 'rejected'
   | 'error'
   | 'cancelled';
 
-/**
- * Resultado final da sessão: quem foi reconhecido e o que foi detectado.
- * É o que o backend registrará quando a integração existir.
- */
-export interface VerificationOutcome {
-  id: string;
-  /** Nulo quando ninguém foi reconhecido — a tentativa é registrada mesmo assim. */
-  employee: RecognizedEmployee | null;
-  faceConfidence: number | null;
-  detection: EpiDetectionResult;
-  verifiedAt: string;
-}
+/** Estados em que a identidade do funcionário já está estabelecida. */
+export type IdentifiedState = Extract<
+  SessionState,
+  'face_recognized' | 'epi_preparation' | 'epi_detecting' | 'approved' | 'rejected'
+>;
 
-/**
- * Eventos emitidos durante a sessão. O serviço simulado e o futuro cliente do
- * dispositivo embarcado emitem exatamente este vocabulário.
- */
 export type SessionEvent =
-  | { type: 'OPENED' }
   | { type: 'FACE_SCANNING' }
   | { type: 'FACE_RECOGNIZED'; employee: RecognizedEmployee; confidence: number }
   | { type: 'FACE_UNKNOWN'; confidence: number }
-  | { type: 'EPI_STARTED' }
+  | { type: 'EPI_PREPARATION' }
+  | { type: 'EPI_STARTED'; requiredItems: EpiId[] }
   | { type: 'EPI_PROGRESS'; progress: number; items: DetectedEpi[]; currentItem: EpiId | null }
-  | { type: 'COMPLETED'; outcome: VerificationOutcome };
+  | { type: 'EPI_COMPLETED'; detection: EpiDetectionResult };
 
-/** Eventos internos da máquina, que não vêm do serviço. */
+/** Eventos internos da máquina, que não vêm dos serviços. */
 export type SessionControlEvent =
-  | { type: 'START'; requiredItems: EpiId[] }
-  | { type: 'FAILED'; error: unknown }
-  | { type: 'CANCELLED' }
-  | { type: 'RESET' };
+  { type: 'FAILED'; error: unknown } | { type: 'CANCELLED' } | { type: 'RESET' };
 
 export type AnySessionEvent = SessionEvent | SessionControlEvent;
 
@@ -56,24 +49,7 @@ export interface SessionSnapshot {
   progress: number;
   items: DetectedEpi[];
   currentItem: EpiId | null;
-  outcome: VerificationOutcome | null;
+  detection: EpiDetectionResult | null;
+  verifiedAt: string | null;
   error: unknown;
-}
-
-export interface VerificationSessionInput {
-  requiredItems: EpiId[];
-  signal?: AbortSignal;
-}
-
-export type SessionEventListener = (event: SessionEvent) => void;
-
-/**
- * Contrato da sessão de verificação.
- *
- * Uma única chamada conduz reconhecimento facial e detecção de EPIs, emitindo
- * progresso pelo caminho. Trocar o mock pelo cliente do embarcado não exige
- * alteração em nenhuma tela.
- */
-export interface VerificationSessionService {
-  run(input: VerificationSessionInput, onEvent: SessionEventListener): Promise<VerificationOutcome>;
 }

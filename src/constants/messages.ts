@@ -3,33 +3,21 @@
  * com o protótipo e facilitar revisão/tradução futura.
  */
 export const APP_MESSAGES = {
-  system: {
-    terminalLabel: 'PPE Verification System · Terminal 04',
-    connected: 'Conectado',
-    offline: 'Sem conexão',
-  },
-
   home: {
-    title: 'Verificação de EPI',
-    subtitle:
-      'Sistema automatizado de verificação de equipamentos de proteção individual por câmera inteligente.',
-    restrictedBadge: 'Área de Acesso Restrito',
-    readyTitle: 'Pronto para iniciar?',
-    readyDescription:
-      'Posicione-se em frente à câmera e toque no botão abaixo. O sistema verificará seus EPIs automaticamente.',
-    equipmentCountSuffix: 'equipamentos ativos para verificação',
-    equipmentCountSuffixSingular: 'equipamento ativo para verificação',
-    startButton: 'Iniciar Verificação',
-    startHint: 'Toque no botão e a verificação começa automaticamente',
+    title: 'Verificação de EPIs',
+    subtitle: 'Identifique-se e verifique seus equipamentos de proteção individual.',
+    equipmentCountSuffix: 'equipamentos exigidos',
+    equipmentCountSuffixSingular: 'equipamento exigido',
+    startButton: 'Iniciar',
     simulationNotice:
-      'Modo simulado: os resultados são gerados localmente até que a integração com o dispositivo de detecção seja configurada.',
+      'Modo simulado: os resultados são gerados localmente até que a integração com a detecção real seja configurada.',
     noEquipmentTitle: 'Nenhum equipamento ativo',
-    noEquipmentDescription:
-      'Ative pelo menos um equipamento na área administrativa para iniciar uma verificação.',
+    noEquipmentDescription: 'Nenhum equipamento está configurado para verificação neste terminal.',
   },
 
   steps: {
     start: 'Início',
+    identification: 'Identificação',
     verification: 'Verificação',
     access: 'Acesso',
   },
@@ -57,14 +45,10 @@ export const APP_MESSAGES = {
   },
 
   scan: {
-    title: 'Verificação em andamento',
+    title: 'Verificação de EPIs',
     analyzing: 'Analisando...',
-    analyzingHint: 'Identificando os equipamentos de proteção individual.',
-    opening: 'Iniciando verificação...',
-    openingHint: 'Aguarde um instante.',
-    faceScanning: 'Reconhecendo usuário...',
-    faceScanningHint: 'Olhe para a câmera e permaneça parado.',
     epiDetecting: 'Verificando equipamentos...',
+    epiDetectingHint: 'Permaneça na posição marcada até o fim da verificação.',
     checklistTitle: 'Equipamentos',
     waiting: 'Aguardando',
     detected: 'Detectado',
@@ -77,33 +61,47 @@ export const APP_MESSAGES = {
   },
 
   face: {
-    unknownTitle: 'Usuário não reconhecido',
-    unknownDescription: 'Nenhum cadastro correspondeu ao rosto capturado.',
+    title: 'Identificação Facial',
+    instruction: 'Posicione seu rosto dentro da área indicada.',
+    startButton: 'Iniciar Reconhecimento',
+    scanning: 'Identificando funcionário...',
+    scanningHint: 'Mantenha o rosto posicionado e olhe para a câmera.',
+    unknownTitle: 'Funcionário não identificado',
+    unknownDescription: 'Verifique sua posição e tente novamente.',
+    retryButton: 'Tentar Novamente',
+    backHomeButton: 'Voltar ao Início',
+    errorTitle: 'Falha na identificação',
+    errorDescription: 'Não foi possível concluir a identificação. Tente novamente.',
     registrationLabel: 'Matrícula',
+    sectorLabel: 'Setor',
     confidenceLabel: 'Confiança',
-    recognizedTitle: 'Usuário identificado',
+  },
+
+  preparation: {
+    title: 'Funcionário identificado',
+    positionInstruction:
+      'Dirija-se à posição marcada no chão para realizar a verificação dos equipamentos.',
+    positionDetail:
+      'Permaneça na posição indicada e certifique-se de que todo o corpo esteja visível para a câmera.',
+    startButton: 'Iniciar Verificação de EPI',
+    missingEmployeeTitle: 'Nenhum funcionário identificado',
+    missingEmployeeDescription: 'Faça a identificação facial antes de verificar os equipamentos.',
   },
 
   result: {
-    approvedTitle: 'Acesso liberado',
-    approvedSubtitle: 'Todos os equipamentos de proteção individual foram verificados.',
-    rejectedTitle: 'Acesso negado',
-    rejectedReasonPrefix: 'Equipamentos não identificados:',
-    rejectedNoDetection: 'Nenhum equipamento de proteção individual foi identificado.',
-    approvedHeadline: 'Acesso Liberado',
-    warningHeadline: 'Atenção',
-    rejectedHeadline: 'Acesso Negado',
-    approvedCardTitle: 'Todos os EPIs confirmados',
-    warningCardTitle: 'Verificação parcial',
-    rejectedCardTitle: 'EPIs obrigatórios ausentes',
-    warningSubtitle:
-      'A verificação identificou pendências ou baixa confiança. Confira os itens antes de liberar o acesso.',
-    verifiedSuffix: 'equipamentos verificados',
-    confidenceLabel: 'Confiança',
-    accessValidBadge: 'Acesso válido',
-    accessInvalidBadge: 'Acesso bloqueado',
-    accessReviewBadge: 'Revisar antes de liberar',
-    backHomeButton: 'Voltar ao início',
+    approvedTitle: 'ACESSO LIBERADO',
+    rejectedTitle: 'ACESSO NEGADO',
+    checklistTitle: 'Equipamentos analisados',
+    /** Compõe "Verificação reprovada por ausência de N equipamento(s) obrigatório(s)." */
+    rejectedReasonPrefix: 'Verificação reprovada por ausência de',
+    rejectedReasonSuffixSingular: 'equipamento obrigatório.',
+    rejectedReasonSuffix: 'equipamentos obrigatórios.',
+    rejectedLowConfidence:
+      'Verificação reprovada: os equipamentos não foram reconhecidos com confiança suficiente.',
+    retryQuestion: 'Deseja realizar a verificação dos EPIs novamente?',
+    retryButton: 'Verificar Novamente',
+    exitButton: 'Sair',
+    backHomeButton: 'Voltar ao Início',
     missingResultTitle: 'Resultado indisponível',
     missingResultDescription: 'Nenhuma verificação em andamento. Inicie uma nova.',
   },

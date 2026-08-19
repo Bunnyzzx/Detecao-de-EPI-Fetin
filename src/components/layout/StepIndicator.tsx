@@ -5,10 +5,11 @@ import { Text } from '@/components/ui';
 import { APP_MESSAGES } from '@/constants/messages';
 import { colors, radii, spacing } from '@/theme';
 
-export type FlowStep = 'start' | 'verification' | 'access';
+export type FlowStep = 'start' | 'identification' | 'verification' | 'access';
 
 const STEPS: { key: FlowStep; label: string }[] = [
   { key: 'start', label: APP_MESSAGES.steps.start },
+  { key: 'identification', label: APP_MESSAGES.steps.identification },
   { key: 'verification', label: APP_MESSAGES.steps.verification },
   { key: 'access', label: APP_MESSAGES.steps.access },
 ];

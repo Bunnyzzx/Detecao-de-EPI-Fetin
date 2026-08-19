@@ -19,6 +19,8 @@ export default function RootLayout() {
           }}
         >
           <Stack.Screen name="index" />
+          <Stack.Screen name="identificacao" />
+          <Stack.Screen name="preparacao" />
           <Stack.Screen name="verificacao" />
           <Stack.Screen name="resultado" />
           <Stack.Screen name="+not-found" />

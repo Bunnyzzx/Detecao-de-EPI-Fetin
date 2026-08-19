@@ -1,116 +1,104 @@
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { ScanFrame } from '@/components/camera';
+import { CameraViewport, ScanFrame } from '@/components/camera';
 import { StateView } from '@/components/feedback';
 import { Screen, ScreenHeader, StepIndicator } from '@/components/layout';
 import { ConfidenceBar, Text } from '@/components/ui';
 import { APP_MESSAGES } from '@/constants/messages';
 import { EpiChecklistItem } from '@/features/epi-detection/components';
 import { useRequiredEpis } from '@/features/epi-detection/hooks/useRequiredEpis';
-import { RecognizedPersonCard } from '@/features/verification-session/components';
 import { useVerificationSession } from '@/features/verification-session/hooks/VerificationSessionContext';
-import { useCameraAvailability } from '@/hooks/useCameraAvailability';
-import { colors, radii, spacing } from '@/theme';
-
-/** Mensagem de acompanhamento correspondente ao estado corrente. */
-const STAGE_LABEL: Record<string, string> = {
-  opening: APP_MESSAGES.scan.opening,
-  face_scanning: APP_MESSAGES.scan.faceScanning,
-  face_recognized: APP_MESSAGES.scan.epiDetecting,
-  face_unknown: APP_MESSAGES.scan.epiDetecting,
-  epi_detecting: APP_MESSAGES.scan.epiDetecting,
-};
+import { hasIdentifiedEmployee } from '@/features/verification-session/machine/sessionMachine';
+import { colors, spacing } from '@/theme';
 
 export default function VerificationScreen() {
   const router = useRouter();
-  const [permission, requestPermission] = useCameraPermissions();
-  const availability = useCameraAvailability();
   const { requiredEpis } = useRequiredEpis();
-  const { snapshot, start, cancel } = useVerificationSession();
+  const { snapshot, startEpiVerification, cancel, reset } = useVerificationSession();
 
-  const { state, employee, faceConfidence, progress, items, currentItem } = snapshot;
+  const { state, employee, progress, items, currentItem } = snapshot;
+  const isDetecting = state === 'epi_detecting';
+  const isIdentified = hasIdentifiedEmployee(snapshot);
 
-  /** O visor só mostra vídeo quando há câmera disponível e autorizada. */
-  const showCamera = availability === 'available' && Boolean(permission?.granted);
+  /** Impede que uma segunda execução comece por remontagem ou duplo toque. */
+  const hasStartedRef = useRef(false);
 
-  const runSession = useCallback(async () => {
-    const outcome = await start(requiredEpis);
-    if (outcome) {
+  const runVerification = useCallback(async () => {
+    const detection = await startEpiVerification(requiredEpis);
+    if (detection) {
       router.replace('/resultado');
     }
-  }, [requiredEpis, router, start]);
+  }, [requiredEpis, router, startEpiVerification]);
 
   /**
-   * Pede a permissão uma única vez, sem bloquear nada: num terminal
-   * provisionado ela já vem concedida.
+   * A análise começa sozinha ao entrar: o funcionário já tocou em "Iniciar
+   * Verificação de EPI" na tela anterior e agora está na marcação do chão.
+   *
+   * Só `epi_preparation` é entrada válida. Chegar aqui logo após o
+   * reconhecimento facial significa ter pulado a preparação — a máquina
+   * recusaria os eventos de EPI e a tela terminaria num resultado vazio, então
+   * o caminho é voltar para a preparação em vez de analisar.
    */
   useEffect(() => {
-    if (permission && !permission.granted && permission.canAskAgain) {
-      void requestPermission();
-    }
-  }, [permission, requestPermission]);
-
-  /**
-   * A sessão começa sozinha assim que a tela monta. Nenhuma ação do usuário é
-   * necessária depois do toque inicial — nem mesmo autorizar a câmera, que é
-   * apenas o visor. Quando a detecção vier do dispositivo embarcado, este
-   * ponto continua o mesmo.
-   */
-  useEffect(() => {
-    if (requiredEpis.length === 0) {
+    if (!isIdentified) {
       return;
     }
-    void runSession();
-    return cancel;
-  }, [cancel, requiredEpis.length, runSession]);
+    if (state === 'face_recognized') {
+      router.replace('/preparacao');
+      return;
+    }
+    if (state !== 'epi_preparation' || hasStartedRef.current || requiredEpis.length === 0) {
+      return;
+    }
+    hasStartedRef.current = true;
+    void runVerification();
+  }, [isIdentified, requiredEpis.length, router, runVerification, state]);
+
+  useEffect(() => cancel, [cancel]);
 
   const goHome = useCallback(() => {
-    cancel();
+    reset();
     router.replace('/');
-  }, [cancel, router]);
+  }, [reset, router]);
 
-  const isFinished = state === 'completed' || state === 'error' || state === 'cancelled';
+  const backToPreparation = useCallback(() => {
+    hasStartedRef.current = false;
+    router.replace('/preparacao');
+  }, [router]);
+
+  if (!isIdentified) {
+    return (
+      <Screen>
+        <View style={styles.centered}>
+          <StateView
+            icon="account-question"
+            title={APP_MESSAGES.preparation.missingEmployeeTitle}
+            description={APP_MESSAGES.preparation.missingEmployeeDescription}
+            tone="warning"
+            actions={[{ label: APP_MESSAGES.face.backHomeButton, onPress: goHome, icon: 'home' }]}
+          />
+        </View>
+      </Screen>
+    );
+  }
 
   const renderBody = () => {
-    if (state === 'error') {
+    if (state === 'error' || state === 'cancelled') {
+      const isError = state === 'error';
       return (
         <StateView
-          icon="alert-circle-outline"
-          title={APP_MESSAGES.scan.errorTitle}
-          description={APP_MESSAGES.scan.errorDescription}
-          tone="danger"
+          icon={isError ? 'alert-circle-outline' : 'refresh'}
+          title={isError ? APP_MESSAGES.scan.errorTitle : APP_MESSAGES.scan.cancelledTitle}
+          description={
+            isError ? APP_MESSAGES.scan.errorDescription : APP_MESSAGES.scan.cancelledDescription
+          }
+          tone={isError ? 'danger' : 'warning'}
           appearance="dark"
           actions={[
-            {
-              label: APP_MESSAGES.scan.retryButton,
-              onPress: () => void runSession(),
-              icon: 'refresh',
-            },
-            { label: APP_MESSAGES.common.back, onPress: goHome, variant: 'secondary' },
-          ]}
-        />
-      );
-    }
-
-    if (state === 'cancelled') {
-      return (
-        <StateView
-          icon="refresh"
-          title={APP_MESSAGES.scan.cancelledTitle}
-          description={APP_MESSAGES.scan.cancelledDescription}
-          tone="warning"
-          appearance="dark"
-          actions={[
-            {
-              label: APP_MESSAGES.scan.retryButton,
-              onPress: () => void runSession(),
-              icon: 'refresh',
-            },
-            { label: APP_MESSAGES.common.back, onPress: goHome, variant: 'secondary' },
+            { label: APP_MESSAGES.scan.retryButton, onPress: backToPreparation, icon: 'refresh' },
+            { label: APP_MESSAGES.face.backHomeButton, onPress: goHome, variant: 'secondary' },
           ]}
         />
       );
@@ -118,34 +106,17 @@ export default function VerificationScreen() {
 
     return (
       <View style={styles.layout}>
-        <View style={styles.viewport}>
-          {showCamera ? (
-            <CameraView style={StyleSheet.absoluteFill} facing="front" />
-          ) : (
-            <View style={[StyleSheet.absoluteFill, styles.viewportPlaceholder]}>
-              <MaterialCommunityIcons
-                name="account-outline"
-                size={140}
-                color={colors.overlayBorder}
-              />
-              <Text variant="caption" color={colors.slate[400]} align="center">
-                {APP_MESSAGES.camera.unavailableTitle}
-              </Text>
-            </View>
-          )}
-          <ScanFrame active={!isFinished} />
+        <CameraViewport style={styles.viewport}>
+          <ScanFrame active={isDetecting} />
+        </CameraViewport>
 
-          <View style={styles.stageBadge} pointerEvents="none">
-            <Text variant="captionStrong" color={colors.white} align="center">
-              {STAGE_LABEL[state] ?? APP_MESSAGES.scan.faceScanningHint}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.sidebar}>
-          {employee || state === 'face_unknown' || state === 'epi_detecting' ? (
-            <RecognizedPersonCard employee={employee} confidence={faceConfidence} onDark />
-          ) : null}
+        <View style={styles.panel}>
+          <Text variant="heading" color={colors.white} align="center">
+            {APP_MESSAGES.scan.epiDetecting}
+          </Text>
+          <Text variant="caption" color={colors.slate[400]} align="center">
+            {employee ? employee.nome : APP_MESSAGES.scan.epiDetectingHint}
+          </Text>
 
           <View style={styles.progressBlock}>
             <View style={styles.progressHeader}>
@@ -160,7 +131,7 @@ export default function VerificationScreen() {
               value={progress}
               color={colors.accent}
               trackColor={colors.overlayBorder}
-              height={6}
+              height={8}
             />
           </View>
 
@@ -170,8 +141,8 @@ export default function VerificationScreen() {
                 <EpiChecklistItem
                   item={item}
                   tone="dark"
-                  pending={!isFinished && !item.detected}
-                  scanning={item.id === currentItem && state === 'epi_detecting'}
+                  pending={isDetecting && !item.detected}
+                  scanning={item.id === currentItem && isDetecting}
                 />
               </View>
             ))}
@@ -183,7 +154,7 @@ export default function VerificationScreen() {
 
   return (
     <Screen backgroundColor={colors.scanner.background}>
-      <ScreenHeader title={APP_MESSAGES.scan.title} onBack={goHome} tone="dark" />
+      <ScreenHeader title={APP_MESSAGES.scan.title} tone="dark" />
       <View style={styles.body}>{renderBody()}</View>
       <StepIndicator currentStep="verification" tone="dark" />
     </Screen>
@@ -197,47 +168,26 @@ const styles = StyleSheet.create({
   },
   layout: {
     flex: 1,
-    flexDirection: 'column',
     gap: spacing.md,
     padding: spacing.md,
   },
-  /** Em retrato o visor ocupa a metade de cima, na altura dos olhos. */
   viewport: {
     flex: 1,
-    minHeight: 220,
-    borderRadius: radii.xxl,
-    overflow: 'hidden',
-    backgroundColor: colors.scanner.viewport,
+    minHeight: 180,
   },
-  viewportPlaceholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-  },
-  stageBadge: {
-    position: 'absolute',
-    left: spacing.lg,
-    right: spacing.lg,
-    bottom: spacing.xl,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderRadius: radii.xl,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    borderWidth: 1,
-    borderColor: colors.overlayBorder,
-  },
-  sidebar: {
+  panel: {
     gap: spacing.sm,
   },
   progressBlock: {
     gap: spacing.sm,
+    marginTop: spacing.xs,
   },
   progressHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  /** Duas colunas, pelo mesmo motivo da tela de resultado. */
+  /** Duas colunas: em retrato os sete equipamentos empilhados não caberiam. */
   checklist: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -245,5 +195,9 @@ const styles = StyleSheet.create({
   },
   checklistCell: {
     width: '48.5%',
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
   },
 });

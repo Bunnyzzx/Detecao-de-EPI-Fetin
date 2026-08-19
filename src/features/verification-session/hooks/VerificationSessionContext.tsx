@@ -8,34 +8,49 @@ import {
   type ReactNode,
 } from 'react';
 
-import type { EpiId } from '@/features/epi-detection/types';
+import { getEpiVerificationService } from '@/features/epi-detection/services/epiVerificationServiceFactory';
+import type { EpiDetectionResult, EpiId } from '@/features/epi-detection/types';
+import { getFaceRecognitionService } from '@/features/face-recognition/services/faceRecognitionServiceFactory';
 import { isCancellation, normalizeError } from '@/services/errors';
 
 import { createInitialSnapshot, sessionReducer } from '../machine/sessionMachine';
-import { getVerificationSessionService } from '../services/verificationSessionServiceFactory';
-import type { SessionSnapshot, VerificationOutcome } from '../types';
+import type { SessionSnapshot } from '../types';
 
 interface VerificationSessionContextValue {
   snapshot: SessionSnapshot;
-  /** Inicia uma sessão; devolve o resultado ou `null` se falhar/cancelar. */
-  start: (requiredItems: EpiId[]) => Promise<VerificationOutcome | null>;
+  /** Identifica o funcionário. Devolve `true` quando alguém é reconhecido. */
+  startFaceRecognition: () => Promise<boolean>;
+  /** Entra na preparação para EPI, preservando o funcionário identificado. */
+  prepareEpiVerification: () => void;
+  /** Verifica os equipamentos. Devolve o resultado, ou `null` se falhar. */
+  startEpiVerification: (requiredItems: EpiId[]) => Promise<EpiDetectionResult | null>;
   cancel: () => void;
-  /** Limpa pessoa reconhecida, progresso e resultado. */
+  /** Limpa a sessão inteira e devolve o terminal para o próximo funcionário. */
   reset: () => void;
 }
 
 const VerificationSessionContext = createContext<VerificationSessionContextValue | null>(null);
 
 /**
- * Mantém a sessão viva entre a tela de verificação e a de resultado, sem
- * depender de persistência nem de parâmetros de rota.
+ * Mantém a sessão viva entre as telas do terminal, sem depender de persistência
+ * nem de parâmetros de rota. É o que permite reprovar a verificação de EPI e
+ * tentar de novo sem repetir o reconhecimento facial.
  */
 export const VerificationSessionProvider = ({ children }: { children: ReactNode }) => {
   const [snapshot, dispatch] = useReducer(sessionReducer, undefined, createInitialSnapshot);
   const controllerRef = useRef<AbortController | null>(null);
 
+  /** Assume o lugar de qualquer operação anterior ainda em curso. */
+  const takeOver = useCallback(() => {
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    return controller;
+  }, []);
+
   const cancel = useCallback(() => {
     controllerRef.current?.abort();
+    controllerRef.current = null;
     dispatch({ type: 'CANCELLED' });
   }, []);
 
@@ -45,49 +60,105 @@ export const VerificationSessionProvider = ({ children }: { children: ReactNode 
     dispatch({ type: 'RESET' });
   }, []);
 
-  const start = useCallback(async (requiredItems: EpiId[]): Promise<VerificationOutcome | null> => {
-    // Uma nova sessão cancela e assume o lugar da anterior.
+  const prepareEpiVerification = useCallback(() => {
     controllerRef.current?.abort();
+    controllerRef.current = null;
+    dispatch({ type: 'EPI_PREPARATION' });
+  }, []);
 
-    const controller = new AbortController();
-    controllerRef.current = controller;
-
-    /** Verdadeiro enquanto esta execução ainda for a vigente. */
+  const startFaceRecognition = useCallback(async (): Promise<boolean> => {
+    const controller = takeOver();
     const isCurrent = () => controllerRef.current === controller && !controller.signal.aborted;
 
-    dispatch({ type: 'START', requiredItems });
+    dispatch({ type: 'FACE_SCANNING' });
 
     try {
-      const outcome = await getVerificationSessionService().run(
-        { requiredItems, signal: controller.signal },
-        (event) => {
-          if (isCurrent()) {
-            dispatch(event);
-          }
-        },
-      );
+      const result = await getFaceRecognitionService().recognize({ signal: controller.signal });
 
-      return isCurrent() ? outcome : null;
+      if (!isCurrent()) {
+        return false;
+      }
+
+      if (result.status === 'recognized') {
+        dispatch({
+          type: 'FACE_RECOGNIZED',
+          employee: result.employee,
+          confidence: result.confidence,
+        });
+        return true;
+      }
+
+      dispatch({ type: 'FACE_UNKNOWN', confidence: result.confidence });
+      return false;
     } catch (caught) {
       if (controllerRef.current !== controller) {
-        return null;
+        return false;
       }
       if (isCancellation(caught)) {
         dispatch({ type: 'CANCELLED' });
-        return null;
+        return false;
       }
       dispatch({ type: 'FAILED', error: normalizeError(caught) });
-      return null;
+      return false;
     } finally {
       if (controllerRef.current === controller) {
         controllerRef.current = null;
       }
     }
-  }, []);
+  }, [takeOver]);
+
+  const startEpiVerification = useCallback(
+    async (requiredItems: EpiId[]): Promise<EpiDetectionResult | null> => {
+      const controller = takeOver();
+      const isCurrent = () => controllerRef.current === controller && !controller.signal.aborted;
+
+      dispatch({ type: 'EPI_STARTED', requiredItems });
+
+      try {
+        const detection = await getEpiVerificationService().run(
+          { requiredItems, signal: controller.signal },
+          (event) => {
+            if (isCurrent()) {
+              dispatch(event);
+            }
+          },
+        );
+
+        if (!isCurrent()) {
+          return null;
+        }
+
+        dispatch({ type: 'EPI_COMPLETED', detection });
+        return detection;
+      } catch (caught) {
+        if (controllerRef.current !== controller) {
+          return null;
+        }
+        if (isCancellation(caught)) {
+          dispatch({ type: 'CANCELLED' });
+          return null;
+        }
+        dispatch({ type: 'FAILED', error: normalizeError(caught) });
+        return null;
+      } finally {
+        if (controllerRef.current === controller) {
+          controllerRef.current = null;
+        }
+      }
+    },
+    [takeOver],
+  );
 
   const value = useMemo<VerificationSessionContextValue>(
-    () => ({ snapshot, start, cancel, reset }),
-    [snapshot, start, cancel, reset],
+    () => ({
+      snapshot,
+      startFaceRecognition,
+      prepareEpiVerification,
+      startEpiVerification,
+      cancel,
+      reset,
+    }),
+    [snapshot, startFaceRecognition, prepareEpiVerification, startEpiVerification, cancel, reset],
   );
 
   return (
