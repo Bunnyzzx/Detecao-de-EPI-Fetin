@@ -16,3 +16,9 @@ export type SpacingToken = keyof typeof spacing;
 
 /** Alvo mínimo de toque recomendado pelas diretrizes de acessibilidade. */
 export const MIN_TOUCH_TARGET = 48;
+
+/**
+ * Altura das ações principais do terminal. Bem acima do mínimo de
+ * acessibilidade: o tablet é operado em pé, de relance, às vezes com luvas.
+ */
+export const TERMINAL_TOUCH_TARGET = 76;

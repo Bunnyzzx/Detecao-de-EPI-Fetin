@@ -10,12 +10,13 @@ import {
 } from 'react-native';
 
 import type { MaterialCommunityIconName } from '@/features/epi-detection/types';
-import { colors, radii, shadows, spacing, MIN_TOUCH_TARGET } from '@/theme';
+import { colors, radii, shadows, spacing, MIN_TOUCH_TARGET, TERMINAL_TOUCH_TARGET } from '@/theme';
 
 import { Text } from './Text';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'success' | 'danger' | 'dark';
-export type ButtonSize = 'medium' | 'large';
+/** `terminal` é a ação principal do tablet: alta, larga e com texto grande. */
+export type ButtonSize = 'medium' | 'large' | 'terminal';
 
 export interface ButtonProps extends Omit<PressableProps, 'style' | 'children'> {
   label: string;
@@ -87,10 +88,11 @@ export const Button = ({
 }: ButtonProps) => {
   const palette = VARIANTS[variant];
   const isInteractionBlocked = Boolean(disabled) || loading;
+  const isTerminal = size === 'terminal';
   const iconElement = icon ? (
     <MaterialCommunityIcons
       name={icon}
-      size={size === 'large' ? 22 : 20}
+      size={isTerminal ? 30 : size === 'large' ? 22 : 20}
       color={palette.foreground}
     />
   ) : null;
@@ -103,7 +105,7 @@ export const Button = ({
       disabled={isInteractionBlocked}
       style={({ pressed }) => [
         styles.base,
-        size === 'large' ? styles.large : styles.medium,
+        isTerminal ? styles.terminal : size === 'large' ? styles.large : styles.medium,
         fullWidth ? styles.fullWidth : null,
         {
           backgroundColor: pressed ? palette.pressedBackground : palette.background,
@@ -123,7 +125,7 @@ export const Button = ({
         <View style={styles.content}>
           {iconPosition === 'left' ? iconElement : null}
           <Text
-            variant={size === 'large' ? 'subheading' : 'bodyStrong'}
+            variant={isTerminal ? 'title' : size === 'large' ? 'subheading' : 'bodyStrong'}
             color={palette.foreground}
             numberOfLines={1}
           >
@@ -149,6 +151,11 @@ const styles = StyleSheet.create({
   },
   large: {
     paddingVertical: spacing.lg,
+  },
+  terminal: {
+    minHeight: TERMINAL_TOUCH_TARGET,
+    paddingVertical: spacing.xl,
+    borderRadius: radii.xxl,
   },
   fullWidth: {
     alignSelf: 'stretch',
