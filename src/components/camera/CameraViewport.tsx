@@ -34,7 +34,7 @@ export const CameraViewport = ({ children, style }: CameraViewportProps) => {
   }, [permission, requestPermission]);
 
   return (
-    <View style={[styles.viewport, style]}>
+    <View testID="camera-viewport" style={[styles.viewport, style]}>
       {showCamera ? (
         <CameraView style={StyleSheet.absoluteFill} facing="front" />
       ) : (

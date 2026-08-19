@@ -14,7 +14,7 @@ export interface FaceGuideProps {
  * nenhuma decisão do sistema depende de o rosto estar dentro do oval.
  */
 export const FaceGuide = ({ active = false }: FaceGuideProps) => (
-  <View style={styles.container} pointerEvents="none">
+  <View testID="face-guide" style={styles.container} pointerEvents="none">
     <View
       style={[
         styles.oval,
