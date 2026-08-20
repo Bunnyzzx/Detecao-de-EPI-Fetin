@@ -41,10 +41,16 @@ export const EpiGridItem = ({ item, active = true }: EpiGridItemProps) => {
         variant={metrics.epiLabel}
         color={active ? colors.slate[800] : colors.slate[400]}
         align="center"
+        style={styles.label}
       >
         {item.label}
       </Text>
-      <Text variant={metrics.epiDescription} color={colors.slate[500]} align="center">
+      <Text
+        variant={metrics.epiDescription}
+        color={colors.slate[500]}
+        align="center"
+        style={styles.description}
+      >
         {item.description}
       </Text>
     </View>
@@ -52,15 +58,28 @@ export const EpiGridItem = ({ item, active = true }: EpiGridItemProps) => {
 };
 
 const styles = StyleSheet.create({
+  /**
+   * Sem `flex` aqui de propósito.
+   *
+   * O item vive dentro de uma célula em coluna, então `flex: 1` significava
+   * `flexBasis: 0` no eixo vertical: o Yoga zerava a altura do item no
+   * Android e as linhas colapsavam umas sobre as outras, escondendo os
+   * textos. A altura tem que vir do conteúdo — ícone, nome e descrição.
+   */
   container: {
-    flex: 1,
-    minWidth: 96,
+    alignSelf: 'stretch',
     alignItems: 'center',
-    gap: spacing.xs,
     paddingVertical: spacing.sm,
   },
   inactive: {
     opacity: 0.55,
+  },
+  /** Margens em vez de `gap`: espaçamento idêntico em Android e Web. */
+  label: {
+    marginTop: spacing.sm,
+  },
+  description: {
+    marginTop: spacing.xxs,
   },
   iconWrapper: {
     borderRadius: radii.xl,
