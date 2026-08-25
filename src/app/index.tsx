@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useCallback } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { EmptyState, ErrorState, LoadingState } from '@/components/feedback';
 import { Screen, StepIndicator } from '@/components/layout';
@@ -47,7 +47,14 @@ export default function HomeScreen() {
     <Screen edges={['top', 'left', 'right']}>
       <View style={styles.body}>
         <View style={styles.header}>
-          <View
+          {/*
+            Toque longo no emblema abre o diagnóstico do ONNX. É a única
+            forma de alcançá-lo no tablet, que não tem barra de endereços;
+            fica invisível para quem opera o terminal e não altera o fluxo.
+          */}
+          <Pressable
+            onLongPress={() => router.push('/diagnostico-onnx')}
+            delayLongPress={1500}
             style={[styles.emblem, { width: metrics.emblemSize, height: metrics.emblemSize }]}
           >
             <MaterialCommunityIcons
@@ -55,7 +62,7 @@ export default function HomeScreen() {
               size={metrics.emblemIconSize}
               color={colors.primary}
             />
-          </View>
+          </Pressable>
 
           <Text variant={metrics.screenTitle} color={colors.slate[900]} align="center">
             {APP_MESSAGES.home.title}
