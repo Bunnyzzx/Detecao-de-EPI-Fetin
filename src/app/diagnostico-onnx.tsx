@@ -77,7 +77,10 @@ export default function OnnxDiagnosticScreen() {
             <Row label="Input dims" value={result.inputDims} />
             <Row label="Output dims" value={result.outputDims} />
             <Row label="Valores" value={result.outputLength?.toString() ?? '—'} />
-            <Row label="Carregamento" value={result.loadMs === null ? '—' : `${result.loadMs} ms`} />
+            <Row
+              label="Carregamento"
+              value={result.loadMs === null ? '—' : `${result.loadMs} ms`}
+            />
             <Row
               label="Inferência"
               value={result.inferenceMs === null ? '—' : `${result.inferenceMs} ms`}
@@ -123,6 +126,13 @@ export default function OnnxDiagnosticScreen() {
           onPress={() => void runMlkit()}
         />
 
+        <Button
+          label="Teste facial real"
+          icon="account-search"
+          size="large"
+          onPress={() => router.push('/diagnostico-face')}
+        />
+
         {mlkit ? (
           <View style={styles.card}>
             <Row label="Módulo nativo" value={mlkit.moduleAvailable ? 'disponível' : 'ausente'} />
@@ -131,9 +141,7 @@ export default function OnnxDiagnosticScreen() {
             <Row
               label="Status"
               value={mlkit.success ? 'SUCESSO' : 'FALHA'}
-              valueColor={
-                mlkit.success ? colors.status.approvedText : colors.status.rejectedText
-              }
+              valueColor={mlkit.success ? colors.status.approvedText : colors.status.rejectedText}
             />
 
             {mlkit.error ? (

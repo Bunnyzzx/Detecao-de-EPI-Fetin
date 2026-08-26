@@ -25,6 +25,7 @@ export default function RootLayout() {
           <Stack.Screen name="resultado" />
           {/* Ferramenta de desenvolvimento, fora do fluxo do terminal. */}
           <Stack.Screen name="diagnostico-onnx" />
+          <Stack.Screen name="diagnostico-face" />
           <Stack.Screen name="+not-found" />
         </Stack>
       </VerificationSessionProvider>
