@@ -26,8 +26,10 @@ export interface PipelineResult {
   imageHeight: number;
   rawBox: Box | null;
   cropBox: Box | null;
+  headEulerAngleX: number | null;
   headEulerAngleY: number | null;
   headEulerAngleZ: number | null;
+  trackingId: number | null;
   embeddingDim: number | null;
   embeddingNorm: number | null;
   match: MatchResult | null;
@@ -50,8 +52,10 @@ const emptyResult = (): PipelineResult => ({
   imageHeight: 0,
   rawBox: null,
   cropBox: null,
+  headEulerAngleX: null,
   headEulerAngleY: null,
   headEulerAngleZ: null,
+  trackingId: null,
   embeddingDim: null,
   embeddingNorm: null,
   match: null,
@@ -88,8 +92,11 @@ export const analyzePhoto = async (input: {
     const detectMs = Date.now() - t0;
 
     result.facesDetected = faces.length;
+
+    // Nenhum rosto não é falha técnica: o detector rodou e respondeu. Fica
+    // registrado em `facesDetected`, sem virar erro, para o diagnóstico
+    // distinguir "não achou ninguém" de "quebrou".
     if (faces.length === 0) {
-      result.error = 'SEM_ROSTO';
       result.timings = zeroTimings({ detectMs, totalMs: Date.now() - inicioTotal });
       return result;
     }
@@ -100,8 +107,10 @@ export const analyzePhoto = async (input: {
     }
 
     result.rawBox = escolhido.box;
+    result.headEulerAngleX = escolhido.headEulerAngleX;
     result.headEulerAngleY = escolhido.headEulerAngleY;
     result.headEulerAngleZ = escolhido.headEulerAngleZ;
+    result.trackingId = escolhido.trackingId;
 
     // 2. Quadratura e recorte. Sem margem, como no enrollment.
     const cropBox = toSquareBox(escolhido.box, photoWidth, photoHeight);

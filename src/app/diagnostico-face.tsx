@@ -193,15 +193,24 @@ export default function FaceDiagnosticScreen() {
               <Row label="Rostos detectados" value={String(result.facesDetected)} />
               <Row label="Imagem" value={`${result.imageWidth} × ${result.imageHeight}`} />
               <Row label="ML Kit bbox" value={formatBox(result.rawBox)} />
+              {/*
+                Os extremos da caixa são o dado que diz em qual espaço de
+                coordenadas o ML Kit respondeu: comparar contra a largura e a
+                altura da foto revela se ele enxergou a imagem de pé ou
+                deitada, sem precisar mexer em nada ainda.
+              */}
+              <Row label="ML Kit x + w" value={extent(result.rawBox, 'x')} />
+              <Row label="ML Kit y + h" value={extent(result.rawBox, 'y')} />
               <Row label="FaceNet crop" value={formatBox(result.cropBox)} />
               <Row
-                label="Ângulos Y / Z"
+                label="Ângulos X / Y / Z"
                 value={
-                  result.headEulerAngleY === null
+                  result.headEulerAngleX === null && result.headEulerAngleY === null
                     ? '—'
-                    : `${result.headEulerAngleY.toFixed(1)}° / ${result.headEulerAngleZ?.toFixed(1) ?? '—'}°`
+                    : `${fmtAngle(result.headEulerAngleX)} / ${fmtAngle(result.headEulerAngleY)} / ${fmtAngle(result.headEulerAngleZ)}`
                 }
               />
+              <Row label="trackingId" value={result.trackingId?.toString() ?? '—'} />
             </View>
 
             <View style={styles.card}>
@@ -275,6 +284,14 @@ export default function FaceDiagnosticScreen() {
 
 const sim = (valor: boolean): string => (valor ? 'SIM' : 'NÃO');
 
+const fmtAngle = (valor: number | null): string => (valor === null ? '—' : `${valor.toFixed(1)}°`);
+
+/** Borda direita ou inferior da caixa — o limite a comparar com a foto. */
+const extent = (box: { x: number; y: number; width: number; height: number } | null, eixo: 'x' | 'y'): string =>
+  box === null
+    ? '—'
+    : String(eixo === 'x' ? box.x + box.width : box.y + box.height);
+
 /** Fora de ~1 a saída do modelo está errada e o diagnóstico precisa gritar. */
 const normColor = (norma: number | null): string => {
   if (norma === null) return colors.slate[900];
@@ -287,8 +304,10 @@ const emptyPipelineResult = (): PipelineResult => ({
   imageHeight: 0,
   rawBox: null,
   cropBox: null,
+  headEulerAngleX: null,
   headEulerAngleY: null,
   headEulerAngleZ: null,
+  trackingId: null,
   embeddingDim: null,
   embeddingNorm: null,
   match: null,

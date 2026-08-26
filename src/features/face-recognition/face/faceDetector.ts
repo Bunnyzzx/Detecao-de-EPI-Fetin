@@ -3,8 +3,10 @@ import type { Box } from './faceGeometry';
 export interface DetectedFace {
   box: Box;
   /** Ângulos de cabeça reportados pelo ML Kit; só exibidos, nunca aplicados. */
+  headEulerAngleX: number | null;
   headEulerAngleY: number | null;
   headEulerAngleZ: number | null;
+  trackingId: number | null;
 }
 
 export class FaceDetectorError extends Error {
@@ -20,6 +22,29 @@ interface MlkitRect {
 }
 
 /**
+ * O que o ML Kit realmente devolve.
+ *
+ * A tipagem publicada pela biblioteca declara `success: boolean` e
+ * `error: string | null`, mas **nenhuma das duas implementações nativas
+ * produz esses campos** — o record do Android tem apenas `faces` e
+ * `imagePath`, e o do iOS é idêntico. Confiar neles fazia todo retorno
+ * válido ser rejeitado, porque `undefined` reprova qualquer teste de
+ * verdade. Este tipo descreve o contrato observado, não o declarado.
+ */
+interface MlkitFace {
+  frame: MlkitRect;
+  headEulerAngleX?: number | null;
+  headEulerAngleY?: number | null;
+  headEulerAngleZ?: number | null;
+  trackingID?: number | null;
+}
+
+interface MlkitDetectionResult {
+  faces?: MlkitFace[];
+  imagePath?: string;
+}
+
+/**
  * Envoltório do ML Kit.
  *
  * Existe para que o resto do código não conheça o formato do detector: o ML
@@ -30,18 +55,7 @@ export class FaceDetector {
   private detector: {
     status: string;
     initialize: (options?: { performanceMode: string }) => Promise<void>;
-    detectFaces: (uri: string) => Promise<
-      | {
-          faces: {
-            frame: MlkitRect;
-            headEulerAngleY?: number | null;
-            headEulerAngleZ?: number | null;
-          }[];
-          success: boolean;
-          error: string | null;
-        }
-      | undefined
-    >;
+    detectFaces: (uri: string) => Promise<MlkitDetectionResult | undefined | null>;
   } | null = null;
 
   initMs: number | null = null;
@@ -78,13 +92,18 @@ export class FaceDetector {
     }
 
     const resultado = await this.detector.detectFaces(imageUri);
+
+    // A biblioteca devolve `undefined` quando a chamada nativa lança — é esse
+    // o sinal de falha real, não um campo booleano.
     if (!resultado) {
       throw new FaceDetectorError('A detecção não devolveu resultado.');
     }
-    if (!resultado.success) {
-      throw new FaceDetectorError(resultado.error ?? 'Falha desconhecida na detecção.');
+    if (!Array.isArray(resultado.faces)) {
+      throw new FaceDetectorError('Resposta inválida do detector facial.');
     }
 
+    // Lista vazia é resultado legítimo: o detector rodou e não achou ninguém.
+    // Quem decide o que fazer com isso é o chamador, não este envoltório.
     return resultado.faces.map((face) => ({
       box: {
         x: face.frame.origin.x,
@@ -92,8 +111,10 @@ export class FaceDetector {
         width: face.frame.size.x,
         height: face.frame.size.y,
       },
+      headEulerAngleX: face.headEulerAngleX ?? null,
       headEulerAngleY: face.headEulerAngleY ?? null,
       headEulerAngleZ: face.headEulerAngleZ ?? null,
+      trackingId: face.trackingID ?? null,
     }));
   }
 }
