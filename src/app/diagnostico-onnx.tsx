@@ -5,6 +5,10 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { Screen, ScreenHeader } from '@/components/layout';
 import { Button, Text } from '@/components/ui';
 import {
+  runMlkitProbe,
+  type MlkitProbeResult,
+} from '@/features/face-recognition/detection/mlkitProbe';
+import {
   runFaceNetOnnxProbe,
   type FaceNetProbeResult,
 } from '@/features/face-recognition/onnx/facenetOnnxProbe';
@@ -22,6 +26,9 @@ export default function OnnxDiagnosticScreen() {
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<FaceNetProbeResult | null>(null);
 
+  const [mlkitRunning, setMlkitRunning] = useState(false);
+  const [mlkit, setMlkit] = useState<MlkitProbeResult | null>(null);
+
   const run = useCallback(async () => {
     setRunning(true);
     setResult(null);
@@ -29,6 +36,16 @@ export default function OnnxDiagnosticScreen() {
       setResult(await runFaceNetOnnxProbe());
     } finally {
       setRunning(false);
+    }
+  }, []);
+
+  const runMlkit = useCallback(async () => {
+    setMlkitRunning(true);
+    setMlkit(null);
+    try {
+      setMlkit(await runMlkitProbe());
+    } finally {
+      setMlkitRunning(false);
     }
   }, []);
 
@@ -83,6 +100,49 @@ export default function OnnxDiagnosticScreen() {
               <View style={styles.uriBox}>
                 <Text variant="micro" color={colors.slate[400]} selectable>
                   {result.modelUri}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+
+        {/*
+          Prova do ML Kit: só resolve o módulo nativo e chama `initialize`.
+          Nenhuma imagem é fornecida e nenhum rosto é detectado nesta etapa.
+        */}
+        <View style={styles.divider} />
+
+        <Text variant="heading">ML Kit Face Detection</Text>
+
+        <Button
+          label={mlkitRunning ? 'Verificando...' : 'Verificar módulo'}
+          icon="face-recognition"
+          size="large"
+          variant="secondary"
+          loading={mlkitRunning}
+          onPress={() => void runMlkit()}
+        />
+
+        {mlkit ? (
+          <View style={styles.card}>
+            <Row label="Módulo nativo" value={mlkit.moduleAvailable ? 'disponível' : 'ausente'} />
+            <Row label="Estado" value={mlkit.status ?? '—'} />
+            <Row label="Inicialização" value={mlkit.initMs === null ? '—' : `${mlkit.initMs} ms`} />
+            <Row
+              label="Status"
+              value={mlkit.success ? 'SUCESSO' : 'FALHA'}
+              valueColor={
+                mlkit.success ? colors.status.approvedText : colors.status.rejectedText
+              }
+            />
+
+            {mlkit.error ? (
+              <View style={styles.errorBox}>
+                <Text variant="captionStrong" color={colors.status.rejectedText}>
+                  Erro
+                </Text>
+                <Text variant="caption" color={colors.slate[700]} selectable>
+                  {mlkit.error}
                 </Text>
               </View>
             ) : null}
@@ -145,5 +205,10 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
     borderTopWidth: 1,
     borderTopColor: colors.slate[100],
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.slate[200],
+    marginVertical: spacing.sm,
   },
 });
