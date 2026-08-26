@@ -79,5 +79,8 @@
       "src/**/*.{ts,tsx}",
       "!src/**/*.d.ts"
     ]
+  },
+  "allowScripts": {
+    "unrs-resolver@1.12.2": true
   }
 }
