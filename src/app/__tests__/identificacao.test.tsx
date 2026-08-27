@@ -1,12 +1,21 @@
-import { waitFor } from '@testing-library/react-native';
+import { act, waitFor } from '@testing-library/react-native';
+import { Text } from 'react-native';
 
 import { APP_MESSAGES } from '@/constants/messages';
 import type { PipelineResult } from '@/features/face-recognition/face/facePipeline';
 import type { AutoFaceRecognitionStatus } from '@/features/face-recognition/face/useAutoFaceRecognition';
 import type { MatchResult } from '@/features/face-recognition/gallery/matchEmbedding';
+import { useVerificationSession } from '@/features/verification-session/hooks/VerificationSessionContext';
 import { pressAndSettle, renderScreen } from '@/test-utils/renderScreen';
 
 import IdentificationScreen from '../identificacao';
+import PreparationScreen from '../preparacao';
+
+/** Sonda de teste: expõe o `id` real gravado na sessão, que nenhuma tela mostra. */
+const SessionEmployeeIdProbe = () => {
+  const { snapshot } = useVerificationSession();
+  return <Text>{snapshot.employee?.id ?? 'nenhum'}</Text>;
+};
 
 const mockReplace = jest.fn();
 
@@ -32,14 +41,26 @@ const emptyResult = (): PipelineResult => ({
   error: null,
 });
 
-const matchResult = (passes: boolean, nome = 'Caio'): MatchResult => ({
-  candidates: [{ nome, distance: passes ? 0.18 : 0.71 }],
-  best: { nome, distance: passes ? 0.18 : 0.71 },
+const matchResult = (passes: boolean, nome = 'Caio', id = 42): MatchResult => ({
+  candidates: [{ id, nome, distance: passes ? 0.18 : 0.71 }],
+  best: { id, nome, distance: passes ? 0.18 : 0.71 },
   second: null,
   ratio: null,
   passesDistance: passes,
   passesRatio: passes,
   passes,
+});
+
+const identifiedResult = (nome = 'Caio', id = 42): PipelineResult => ({
+  ...emptyResult(),
+  facesDetected: 1,
+  match: matchResult(true, nome, id),
+});
+
+const notIdentifiedResult = (): PipelineResult => ({
+  ...emptyResult(),
+  facesDetected: 1,
+  match: matchResult(false),
 });
 
 /**
@@ -123,19 +144,6 @@ describe('identificação facial — estado inicial', () => {
     expect(queryByText(APP_MESSAGES.face.startButton)).toBeNull();
   });
 
-  it('nunca navega sozinha para outra tela, mesmo quando alguém é identificado', async () => {
-    mockScenario.onRecognize = withRecognizeCount(async () => ({
-      ...emptyResult(),
-      facesDetected: 1,
-      match: matchResult(true),
-    }));
-    const { getByText } = await renderScreen(<IdentificationScreen />);
-
-    await pressAndSettle(getByText(APP_MESSAGES.face.startButton));
-
-    expect(mockReplace).not.toHaveBeenCalled();
-  });
-
   it('desabilita o início enquanto o detector e o modelo carregam', async () => {
     mockScenario.initialStatus = 'preparando';
     const { getByLabelText } = await renderScreen(<IdentificationScreen />);
@@ -176,30 +184,18 @@ describe('identificação facial — resultado permanece parado', () => {
     expect(recognizeCallCount).toHaveBeenCalledTimes(1);
   });
 
-  it('identificado permanece visível, sem nova captura nem navegação', async () => {
-    mockScenario.onRecognize = withRecognizeCount(async () => ({
-      ...emptyResult(),
-      facesDetected: 1,
-      match: matchResult(true, 'Caio'),
-    }));
+  it('identificado permanece visível e mostra o nome', async () => {
+    mockScenario.onRecognize = withRecognizeCount(async () => identifiedResult('Caio'));
     const { getByText } = await renderScreen(<IdentificationScreen />);
 
     await pressAndSettle(getByText(APP_MESSAGES.face.startButton));
 
     expect(getByText(APP_MESSAGES.face.identifiedTitle)).toBeTruthy();
     expect(getByText('Caio')).toBeTruthy();
-
-    await new Promise((resolve) => setTimeout(resolve, 30));
-    expect(recognizeCallCount).toHaveBeenCalledTimes(1);
-    expect(mockReplace).not.toHaveBeenCalled();
   });
 
   it('não identificado para no resultado, sem nova captura sozinha', async () => {
-    mockScenario.onRecognize = withRecognizeCount(async () => ({
-      ...emptyResult(),
-      facesDetected: 1,
-      match: matchResult(false),
-    }));
+    mockScenario.onRecognize = withRecognizeCount(async () => notIdentifiedResult());
     const { getByText } = await renderScreen(<IdentificationScreen />);
 
     await pressAndSettle(getByText(APP_MESSAGES.face.startButton));
@@ -213,11 +209,7 @@ describe('identificação facial — resultado permanece parado', () => {
 
 describe('identificação facial — tentar novamente', () => {
   const renderNotIdentified = async () => {
-    mockScenario.onRecognize = withRecognizeCount(async () => ({
-      ...emptyResult(),
-      facesDetected: 1,
-      match: matchResult(false),
-    }));
+    mockScenario.onRecognize = withRecognizeCount(async () => notIdentifiedResult());
     const view = await renderScreen(<IdentificationScreen />);
 
     await pressAndSettle(view.getByText(APP_MESSAGES.face.startButton));
@@ -236,11 +228,7 @@ describe('identificação facial — tentar novamente', () => {
     const { getByText } = await renderNotIdentified();
     expect(recognizeCallCount).toHaveBeenCalledTimes(1);
 
-    mockScenario.onRecognize = withRecognizeCount(async () => ({
-      ...emptyResult(),
-      facesDetected: 1,
-      match: matchResult(true, 'Caio'),
-    }));
+    mockScenario.onRecognize = withRecognizeCount(async () => identifiedResult('Caio'));
     await pressAndSettle(getByText(APP_MESSAGES.face.retryButton));
 
     // Uma da tentativa inicial (renderNotIdentified) + uma do "tentar novamente".
@@ -248,11 +236,12 @@ describe('identificação facial — tentar novamente', () => {
     expect(getByText(APP_MESSAGES.face.identifiedTitle)).toBeTruthy();
   });
 
-  it('lista as possíveis causas sem afirmar uma delas', async () => {
+  it('mostra no máximo 3 orientações curtas, sem texto longo', async () => {
     const { getByText } = await renderNotIdentified();
 
-    expect(getByText(APP_MESSAGES.face.unknownChecksTitle)).toBeTruthy();
-    for (const check of APP_MESSAGES.face.unknownChecks) {
+    expect(getByText(APP_MESSAGES.face.unknownShortHint)).toBeTruthy();
+    expect(APP_MESSAGES.face.unknownShortChecks.length).toBeLessThanOrEqual(3);
+    for (const check of APP_MESSAGES.face.unknownShortChecks) {
       expect(getByText(check)).toBeTruthy();
     }
   });
@@ -324,5 +313,164 @@ describe('identificação facial — voltar ao início', () => {
     await pressAndSettle(backButton);
 
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/'));
+  });
+});
+
+describe('identificação facial — ponte para a sessão', () => {
+  it('identificação real popula a sessão com id/nome; preparação funciona só com isso', async () => {
+    mockScenario.onRecognize = withRecognizeCount(async () => identifiedResult('Caio'));
+    const view = await renderScreen(
+      <>
+        <IdentificationScreen />
+        <PreparationScreen />
+      </>,
+    );
+
+    await pressAndSettle(view.getByText(APP_MESSAGES.face.startButton));
+
+    // A preparação (rota real seguinte) já reflete quem foi identificado,
+    // usando só o dado que o pipeline real tem — nome —, sem matrícula/setor
+    // inventados.
+    expect(view.getAllByText('Caio').length).toBeGreaterThan(0);
+    expect(
+      view.queryByText(new RegExp(`^${APP_MESSAGES.face.registrationLabel}:`)),
+    ).toBeNull();
+    expect(view.queryByText(new RegExp(`^${APP_MESSAGES.face.sectorLabel}:`))).toBeNull();
+  });
+
+  it('registra o id real da galeria na sessão — não o nome como identificador', async () => {
+    // `id: 7` é claramente diferente do nome "Caio": se o código regredisse
+    // para `id: best.nome`, a sonda mostraria "Caio", não "7".
+    mockScenario.onRecognize = withRecognizeCount(async () => identifiedResult('Caio', 7));
+    const view = await renderScreen(
+      <>
+        <IdentificationScreen />
+        <SessionEmployeeIdProbe />
+      </>,
+    );
+
+    await pressAndSettle(view.getByText(APP_MESSAGES.face.startButton));
+
+    expect(view.getByText('7')).toBeTruthy();
+    expect(view.queryByText('nenhum')).toBeNull();
+  });
+
+  it('não identificado não registra ninguém na sessão', async () => {
+    mockScenario.onRecognize = withRecognizeCount(async () => notIdentifiedResult());
+    const view = await renderScreen(
+      <>
+        <IdentificationScreen />
+        <PreparationScreen />
+      </>,
+    );
+
+    await pressAndSettle(view.getByText(APP_MESSAGES.face.startButton));
+
+    expect(view.getByText(APP_MESSAGES.preparation.missingEmployeeTitle)).toBeTruthy();
+  });
+
+  it('sem rosto não registra ninguém na sessão', async () => {
+    const view = await renderScreen(
+      <>
+        <IdentificationScreen />
+        <PreparationScreen />
+      </>,
+    );
+
+    await pressAndSettle(view.getByText(APP_MESSAGES.face.startButton));
+
+    expect(view.getByText(APP_MESSAGES.preparation.missingEmployeeTitle)).toBeTruthy();
+  });
+});
+
+describe('identificação facial — avanço automático após sucesso', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  const renderIdentified = async () => {
+    mockScenario.onRecognize = withRecognizeCount(async () => identifiedResult('Caio'));
+    const view = await renderScreen(<IdentificationScreen />);
+    await pressAndSettle(view.getByText(APP_MESSAGES.face.startButton));
+    return view;
+  };
+
+  it('não navega imediatamente após identificar', async () => {
+    await renderIdentified();
+
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it('oferece cancelar mesmo já identificado', async () => {
+    const { getByText } = await renderIdentified();
+
+    expect(getByText(APP_MESSAGES.face.backHomeButton)).toBeTruthy();
+  });
+
+  it('navega para /preparacao depois de ~5 segundos', async () => {
+    await renderIdentified();
+
+    await act(async () => {
+      jest.advanceTimersByTime(5000);
+    });
+
+    expect(mockReplace).toHaveBeenCalledWith('/preparacao');
+  });
+
+  it('não dispara nova análise durante a espera do avanço', async () => {
+    await renderIdentified();
+    expect(recognizeCallCount).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      jest.advanceTimersByTime(5000);
+    });
+
+    expect(recognizeCallCount).toHaveBeenCalledTimes(1);
+  });
+
+  it('cancelar antes do timer impede a navegação automática', async () => {
+    const { getByText, unmount } = await renderIdentified();
+
+    await pressAndSettle(getByText(APP_MESSAGES.face.backHomeButton));
+    // A navegação real desmontaria esta tela; o teste simula isso, já que o
+    // router mockado não troca de tela sozinho.
+    await unmount();
+
+    await act(async () => {
+      jest.advanceTimersByTime(5000);
+    });
+
+    expect(mockReplace).not.toHaveBeenCalledWith('/preparacao');
+  });
+
+  it('cancelar durante o sucesso também reseta a sessão', async () => {
+    mockScenario.onRecognize = withRecognizeCount(async () => identifiedResult('Caio'));
+    const view = await renderScreen(
+      <>
+        <IdentificationScreen />
+        <PreparationScreen />
+      </>,
+    );
+    await pressAndSettle(view.getByText(APP_MESSAGES.face.startButton));
+
+    await pressAndSettle(view.getByText(APP_MESSAGES.face.backHomeButton));
+
+    expect(view.getByText(APP_MESSAGES.preparation.missingEmployeeTitle)).toBeTruthy();
+  });
+
+  it('desmontar antes do timer também impede a navegação automática', async () => {
+    const { unmount } = await renderIdentified();
+
+    await unmount();
+
+    await act(async () => {
+      jest.advanceTimersByTime(5000);
+    });
+
+    expect(mockReplace).not.toHaveBeenCalledWith('/preparacao');
   });
 });

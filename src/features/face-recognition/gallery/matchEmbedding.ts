@@ -19,6 +19,8 @@ export interface GalleryEntry {
 }
 
 export interface Candidate {
+  /** O mesmo `id` da `GalleryEntry` de origem — não um índice nem o nome. */
+  id: number;
   nome: string;
   distance: number;
 }
@@ -83,7 +85,7 @@ export const matchAgainstGallery = (
   const candidates = gallery
     .map((entry) => {
       assertValidEmbedding(entry.embedding, `Galeria (${entry.nome})`);
-      return { nome: entry.nome, distance: cosineDistance(probe, entry.embedding) };
+      return { id: entry.id, nome: entry.nome, distance: cosineDistance(probe, entry.embedding) };
     })
     .sort((a, b) => a.distance - b.distance);
 

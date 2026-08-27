@@ -74,21 +74,16 @@ export const APP_MESSAGES = {
      */
     unknownDescription:
       'Nenhum cadastro correspondeu ao rosto com confiança suficiente. Isso também pode acontecer por condições da captura.',
-    unknownChecksTitle: 'Verifique se:',
-    unknownChecks: [
-      'Seu rosto está centralizado e voltado para a câmera',
-      'O ambiente está bem iluminado',
-      'Não há sombras fortes sobre o rosto',
-      'A câmera não está obstruída',
-      'Você está a uma distância adequada do tablet',
-    ],
-    unknownRetryHint: 'Posicione-se novamente e tente realizar a identificação.',
+    /** Versão curta, para a tela operacional — legível de relance. */
+    unknownShortHint: 'Olhe diretamente para a câmera e tente novamente.',
+    unknownShortChecks: ['Centralize o rosto', 'Evite sombras fortes', 'Mantenha distância adequada'],
     retryButton: 'Tentar Novamente',
     backHomeButton: 'Voltar ao Início',
     errorTitle: 'Falha na identificação',
     errorDescription: 'Não foi possível concluir a identificação. Tente novamente.',
     noFaceTitle: 'Nenhum rosto detectado',
     identifiedTitle: 'Usuário identificado',
+    identifiedAdvancing: 'Preparando próxima etapa...',
     registrationLabel: 'Matrícula',
     sectorLabel: 'Setor',
     confidenceLabel: 'Confiança',

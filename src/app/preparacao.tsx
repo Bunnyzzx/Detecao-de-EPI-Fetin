@@ -89,14 +89,20 @@ export default function PreparationScreen() {
           {employee.nome}
         </Text>
 
-        <View style={styles.identityMeta}>
-          <Text variant={metrics.employeeMeta} color={colors.white} align="center">
-            {`${APP_MESSAGES.face.registrationLabel}: ${employee.matricula}`}
-          </Text>
-          <Text variant={metrics.employeeMeta} color={colors.white} align="center">
-            {`${APP_MESSAGES.face.sectorLabel}: ${employee.setor}`}
-          </Text>
-        </View>
+        {employee.matricula || employee.setor ? (
+          <View style={styles.identityMeta}>
+            {employee.matricula ? (
+              <Text variant={metrics.employeeMeta} color={colors.white} align="center">
+                {`${APP_MESSAGES.face.registrationLabel}: ${employee.matricula}`}
+              </Text>
+            ) : null}
+            {employee.setor ? (
+              <Text variant={metrics.employeeMeta} color={colors.white} align="center">
+                {`${APP_MESSAGES.face.sectorLabel}: ${employee.setor}`}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.body}>

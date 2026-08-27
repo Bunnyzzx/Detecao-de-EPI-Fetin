@@ -44,9 +44,9 @@ const emptyResult = (overrides: Partial<PipelineResult> = {}): PipelineResult =>
   ...overrides,
 });
 
-const matchResult = (passes: boolean, nome = 'Caio'): MatchResult => ({
-  candidates: [{ nome, distance: passes ? 0.18 : 0.71 }],
-  best: { nome, distance: passes ? 0.18 : 0.71 },
+const matchResult = (passes: boolean, nome = 'Caio', id = 42): MatchResult => ({
+  candidates: [{ id, nome, distance: passes ? 0.18 : 0.71 }],
+  best: { id, nome, distance: passes ? 0.18 : 0.71 },
   second: null,
   ratio: null,
   passesDistance: passes,

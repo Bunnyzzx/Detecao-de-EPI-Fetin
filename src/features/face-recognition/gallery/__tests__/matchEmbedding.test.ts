@@ -162,3 +162,57 @@ describe('comparação com a galeria', () => {
     expect(FACE_RAZAO_MIN).toBe(1.15);
   });
 });
+
+describe('propagação do id da galeria', () => {
+  it('cada candidato carrega o id da GalleryEntry de origem, não um índice', () => {
+    // IDs deliberadamente fora de ordem e não sequenciais a partir de 0: se o
+    // código regredisse para usar a posição no array, o teste pegaria.
+    const g: GalleryEntry[] = [
+      { id: 30, nome: 'Alfa', embedding: unitAt(0) },
+      { id: 10, nome: 'Beta', embedding: unitAt(1) },
+      { id: 20, nome: 'Gama', embedding: unitAt(2) },
+    ];
+    const resultado = matchAgainstGallery(unitAt(1), g);
+
+    const porNome = new Map(resultado.candidates.map((c) => [c.nome, c.id]));
+    expect(porNome.get('Alfa')).toBe(30);
+    expect(porNome.get('Beta')).toBe(10);
+    expect(porNome.get('Gama')).toBe(20);
+  });
+
+  it('best.id corresponde ao id real de quem venceu', () => {
+    const g: GalleryEntry[] = [
+      { id: 111, nome: 'Alfa', embedding: unitAt(0) },
+      { id: 222, nome: 'Beta', embedding: unitAt(1) },
+    ];
+    const resultado = matchAgainstGallery(unitAt(0), g);
+
+    expect(resultado.best?.nome).toBe('Alfa');
+    expect(resultado.best?.id).toBe(111);
+  });
+
+  it('second.id corresponde ao id real do segundo colocado', () => {
+    const probe = blend(0, 1, 0.3);
+    const g: GalleryEntry[] = [
+      { id: 111, nome: 'Alfa', embedding: unitAt(0) },
+      { id: 222, nome: 'Beta', embedding: unitAt(1) },
+      { id: 333, nome: 'Gama', embedding: unitAt(2) },
+    ];
+    const resultado = matchAgainstGallery(probe, g);
+
+    expect(resultado.second?.nome).toBe('Beta');
+    expect(resultado.second?.id).toBe(222);
+  });
+
+  it('a propagação do id não muda ordenação, ratio, nem passes', () => {
+    const probe = blend(0, 1, 0.05);
+    const resultado = matchAgainstGallery(probe, gallery());
+
+    // Mesmos números já cobertos acima ("aprova quando passa nos dois
+    // limiares"), agora reafirmados junto da checagem de id.
+    expect(resultado.best?.id).toBe(1);
+    expect(resultado.best?.distance).toBeLessThanOrEqual(FACE_DISTANCIA_MAX);
+    expect(resultado.ratio).toBeGreaterThanOrEqual(FACE_RAZAO_MIN);
+    expect(resultado.passes).toBe(true);
+  });
+});

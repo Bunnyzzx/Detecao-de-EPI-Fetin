@@ -11,6 +11,7 @@ import {
 import { getEpiVerificationService } from '@/features/epi-detection/services/epiVerificationServiceFactory';
 import type { EpiDetectionResult, EpiId } from '@/features/epi-detection/types';
 import { getFaceRecognitionService } from '@/features/face-recognition/services/faceRecognitionServiceFactory';
+import type { RecognizedEmployee } from '@/features/face-recognition/types';
 import { isCancellation, normalizeError } from '@/services/errors';
 
 import { createInitialSnapshot, sessionReducer } from '../machine/sessionMachine';
@@ -20,6 +21,13 @@ interface VerificationSessionContextValue {
   snapshot: SessionSnapshot;
   /** Identifica o funcionário. Devolve `true` quando alguém é reconhecido. */
   startFaceRecognition: () => Promise<boolean>;
+  /**
+   * Registra alguém já identificado por um pipeline externo — hoje o
+   * reconhecimento facial local, no futuro o backend/pgvector — sem passar
+   * pelo `FaceRecognitionService` mock. O pipeline decide sozinho que a
+   * pessoa é quem diz ser; esta função só leva esse fato para a sessão.
+   */
+  identifyEmployee: (employee: RecognizedEmployee, confidence: number) => void;
   /** Entra na preparação para EPI, preservando o funcionário identificado. */
   prepareEpiVerification: () => void;
   /** Verifica os equipamentos. Devolve o resultado, ou `null` se falhar. */
@@ -107,6 +115,16 @@ export const VerificationSessionProvider = ({ children }: { children: ReactNode 
     }
   }, [takeOver]);
 
+  /**
+   * Reaproveita as mesmas transições que `startFaceRecognition` usaria em caso
+   * de sucesso (`FACE_SCANNING` → `FACE_RECOGNIZED`), sem depender do serviço
+   * mock nem de nenhuma chamada assíncrona: quem chama já tem o resultado.
+   */
+  const identifyEmployee = useCallback((employee: RecognizedEmployee, confidence: number) => {
+    dispatch({ type: 'FACE_SCANNING' });
+    dispatch({ type: 'FACE_RECOGNIZED', employee, confidence });
+  }, []);
+
   const startEpiVerification = useCallback(
     async (requiredItems: EpiId[]): Promise<EpiDetectionResult | null> => {
       const controller = takeOver();
@@ -153,12 +171,21 @@ export const VerificationSessionProvider = ({ children }: { children: ReactNode 
     () => ({
       snapshot,
       startFaceRecognition,
+      identifyEmployee,
       prepareEpiVerification,
       startEpiVerification,
       cancel,
       reset,
     }),
-    [snapshot, startFaceRecognition, prepareEpiVerification, startEpiVerification, cancel, reset],
+    [
+      snapshot,
+      startFaceRecognition,
+      identifyEmployee,
+      prepareEpiVerification,
+      startEpiVerification,
+      cancel,
+      reset,
+    ],
   );
 
   return (

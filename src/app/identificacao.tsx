@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { CameraView } from 'expo-camera';
 import { useRouter } from 'expo-router';
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { CameraViewport } from '@/components/camera';
@@ -13,19 +13,27 @@ import { useVerificationSession } from '@/features/verification-session/hooks/Ve
 import { useHaptics } from '@/hooks/useHaptics';
 import { useTerminalMetrics } from '@/hooks/useTerminalMetrics';
 import { colors, radii, spacing } from '@/theme';
+import { clampUnit } from '@/utils';
 
 /**
  * Desfecho visual de uma tentativa.
  *
  * Cada tentativa é uma captura só: o resultado fica na tela até o funcionário
- * pedir uma nova (ou sair). Nenhum avanço automático — isso é trabalho de uma
- * etapa futura, com confirmação temporal.
+ * pedir uma nova, sair, ou — só no caso de sucesso — até o avanço automático.
  */
 type FaceOutcome = 'idle' | 'waiting' | 'no-face' | 'identified' | 'not-identified' | 'error';
 
+/**
+ * Tempo que o cartão de sucesso fica visível antes de avançar sozinho.
+ *
+ * Só existe para o caminho de identificado — as outras saídas (desconhecido,
+ * sem rosto, erro) exigem uma ação explícita, sem temporizador nenhum.
+ */
+const IDENTIFICATION_SUCCESS_DELAY_MS = 5000;
+
 export default function IdentificationScreen() {
   const router = useRouter();
-  const { cancel, reset } = useVerificationSession();
+  const { cancel, reset, identifyEmployee } = useVerificationSession();
   const { impact } = useHaptics();
   const metrics = useTerminalMetrics();
 
@@ -54,10 +62,12 @@ export default function IdentificationScreen() {
               ? 'identified'
               : 'not-identified';
 
+  const isIdentified = outcome === 'identified';
   // As três só param à espera de uma nova tentativa explícita.
   const needsRetry =
     outcome === 'no-face' || outcome === 'not-identified' || outcome === 'error';
-  const showsGuidanceCard = outcome === 'not-identified' || outcome === 'error';
+  const showsHeroCard = isIdentified || outcome === 'not-identified';
+  const showsGuidanceCard = outcome === 'error';
 
   const attempt = useCallback(() => {
     impact();
@@ -70,15 +80,27 @@ export default function IdentificationScreen() {
     router.replace('/');
   }, [cancel, reset, router]);
 
-  const neutralCopy = (): { title: string; detail: string } => {
-    if (outcome === 'no-face') {
-      return { title: APP_MESSAGES.face.noFaceTitle, detail: APP_MESSAGES.face.instructionDetail };
+  /**
+   * Ponte entre o pipeline real e a sessão: assim que alguém é identificado,
+   * registra a pessoa (só com os dados que a galeria realmente tem) e agenda
+   * o avanço. O cleanup cobre tanto o desmonte quanto o "Voltar ao Início" —
+   * os dois desmontam esta tela, então o mesmo `clearTimeout` resolve ambos.
+   */
+  useEffect(() => {
+    const best = result?.match?.best;
+    if (!isIdentified || !best) {
+      return;
     }
-    if (outcome === 'waiting') {
-      return { title: APP_MESSAGES.face.scanning, detail: APP_MESSAGES.face.scanningHint };
-    }
-    return { title: APP_MESSAGES.face.instruction, detail: APP_MESSAGES.face.instructionDetail };
-  };
+
+    identifyEmployee({ id: String(best.id), nome: best.nome }, clampUnit(1 - best.distance));
+
+    const timer = setTimeout(() => {
+      router.replace('/preparacao');
+    }, IDENTIFICATION_SUCCESS_DELAY_MS);
+
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isIdentified, result]);
 
   return (
     <Screen backgroundColor={colors.scanner.background}>
@@ -92,74 +114,81 @@ export default function IdentificationScreen() {
         */}
         <CameraViewport
           ref={cameraRef}
-          style={showsGuidanceCard ? styles.viewportCompact : styles.viewport}
+          style={showsHeroCard || showsGuidanceCard ? styles.viewportCompact : styles.viewport}
         />
 
-        {outcome === 'identified' ? (
+        {isIdentified ? (
           <View style={styles.identifiedCard}>
-            <View style={styles.guidanceHeader}>
-              <MaterialCommunityIcons name="account-check" size={30} color={colors.status.approved} />
-              <Text variant="heading" color={colors.white} style={styles.guidanceTitle}>
-                {APP_MESSAGES.face.identifiedTitle}
-              </Text>
+            <View style={[styles.badge, { backgroundColor: colors.white }]}>
+              <MaterialCommunityIcons
+                name="check"
+                size={metrics.confirmationIconSize}
+                color={colors.status.approvedDark}
+              />
             </View>
-            <Text variant="subheading" color={colors.slate[200]}>
+            <Text variant={metrics.employeeMeta} color={colors.white} align="center">
+              {APP_MESSAGES.face.identifiedTitle}
+            </Text>
+            <Text variant={metrics.employeeName} color={colors.white} align="center">
               {result?.match?.best?.nome ?? '—'}
             </Text>
+            <Text variant={metrics.instructionDetail} color={colors.slate[100]} align="center">
+              {APP_MESSAGES.face.identifiedAdvancing}
+            </Text>
+          </View>
+        ) : outcome === 'not-identified' ? (
+          <View style={styles.notIdentifiedCard}>
+            <View style={[styles.badge, { backgroundColor: colors.white }]}>
+              <MaterialCommunityIcons
+                name="account-alert"
+                size={metrics.confirmationIconSize}
+                color={colors.status.rejectedDark}
+              />
+            </View>
+            <Text variant={metrics.employeeMeta} color={colors.white} align="center">
+              {APP_MESSAGES.face.unknownTitle}
+            </Text>
+            <Text variant={metrics.instructionDetail} color={colors.slate[100]} align="center">
+              {APP_MESSAGES.face.unknownShortHint}
+            </Text>
+            <View style={styles.checks}>
+              {APP_MESSAGES.face.unknownShortChecks.map((check) => (
+                <View key={check} style={styles.checkRow}>
+                  <MaterialCommunityIcons name="circle-medium" size={20} color={colors.white} />
+                  <Text variant="body" color={colors.slate[100]} style={styles.checkText}>
+                    {check}
+                  </Text>
+                </View>
+              ))}
+            </View>
           </View>
         ) : showsGuidanceCard ? (
           <View style={styles.guidance}>
-            <View style={styles.guidanceHeader}>
-              <MaterialCommunityIcons
-                name="account-alert-outline"
-                size={30}
-                color={colors.status.warning}
-              />
-              <Text variant="heading" color={colors.white} style={styles.guidanceTitle}>
-                {outcome === 'error' ? APP_MESSAGES.face.errorTitle : APP_MESSAGES.face.unknownTitle}
-              </Text>
-            </View>
-
-            <Text variant="body" color={colors.slate[300]}>
-              {outcome === 'error'
-                ? APP_MESSAGES.face.errorDescription
-                : APP_MESSAGES.face.unknownDescription}
+            <MaterialCommunityIcons
+              name="alert-circle-outline"
+              size={metrics.confirmationIconSize * 0.6}
+              color={colors.status.warning}
+            />
+            <Text variant={metrics.instruction} color={colors.white} align="center">
+              {APP_MESSAGES.face.errorTitle}
             </Text>
-
-            {outcome === 'not-identified' ? (
-              <>
-                <Text variant="bodyStrong" color={colors.slate[200]}>
-                  {APP_MESSAGES.face.unknownChecksTitle}
-                </Text>
-
-                <View style={styles.checks}>
-                  {APP_MESSAGES.face.unknownChecks.map((check) => (
-                    <View key={check} style={styles.checkRow}>
-                      <MaterialCommunityIcons
-                        name="circle-medium"
-                        size={20}
-                        color={colors.accent}
-                      />
-                      <Text variant="body" color={colors.slate[300]} style={styles.checkText}>
-                        {check}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-
-                <Text variant="bodyStrong" color={colors.white}>
-                  {APP_MESSAGES.face.unknownRetryHint}
-                </Text>
-              </>
-            ) : null}
+            <Text variant={metrics.instructionDetail} color={colors.slate[300]} align="center">
+              {APP_MESSAGES.face.errorDescription}
+            </Text>
           </View>
         ) : (
           <View style={styles.statusBlock}>
             <Text variant={metrics.instruction} color={colors.white} align="center">
-              {neutralCopy().title}
+              {outcome === 'no-face'
+                ? APP_MESSAGES.face.noFaceTitle
+                : outcome === 'waiting'
+                  ? APP_MESSAGES.face.scanning
+                  : APP_MESSAGES.face.instruction}
             </Text>
             <Text variant={metrics.instructionDetail} color={colors.slate[400]} align="center">
-              {neutralCopy().detail}
+              {outcome === 'waiting'
+                ? APP_MESSAGES.face.scanningHint
+                : APP_MESSAGES.face.instructionDetail}
             </Text>
           </View>
         )}
@@ -175,7 +204,14 @@ export default function IdentificationScreen() {
               size="large"
               onPress={goHome}
             />
-          ) : isRunning || outcome === 'identified' ? null : needsRetry ? (
+          ) : isRunning ? null : isIdentified ? (
+            <Button
+              label={APP_MESSAGES.face.backHomeButton}
+              variant="secondary"
+              size="large"
+              onPress={goHome}
+            />
+          ) : needsRetry ? (
             <>
               <Button
                 label={APP_MESSAGES.face.retryButton}
@@ -217,41 +253,53 @@ const styles = StyleSheet.create({
   viewport: {
     flex: 1,
   },
-  /** Com a orientação em tela o visor cede altura, mas continua utilizável. */
+  /** Com o cartão de resultado em tela o visor cede altura, mas continua utilizável. */
   viewportCompact: {
     flex: 1,
-    minHeight: 200,
+    minHeight: 160,
   },
   statusBlock: {
     gap: spacing.sm,
     paddingHorizontal: spacing.sm,
   },
-  guidance: {
+  /** Bloco cheio e sólido: a mesma linguagem visual de preparacao/resultado
+   * para o desfecho da identidade — precisa ser lido à distância. */
+  identifiedCard: {
+    alignItems: 'center',
     gap: spacing.sm,
-    padding: spacing.lg,
+    paddingVertical: spacing.xxxl,
+    paddingHorizontal: spacing.xl,
+    borderRadius: radii.xl,
+    backgroundColor: colors.status.approvedDark,
+  },
+  notIdentifiedCard: {
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.xxl,
+    paddingHorizontal: spacing.xl,
+    borderRadius: radii.xl,
+    backgroundColor: colors.status.rejectedDark,
+  },
+  badge: {
+    width: 76,
+    height: 76,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
+  },
+  guidance: {
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.xl,
     borderRadius: radii.xl,
     borderWidth: 1,
     borderColor: colors.status.warning,
     backgroundColor: colors.status.warningDeep,
   },
-  identifiedCard: {
-    gap: spacing.sm,
-    padding: spacing.lg,
-    borderRadius: radii.xl,
-    borderWidth: 1,
-    borderColor: colors.status.approved,
-    backgroundColor: colors.status.approvedDeep,
-  },
-  guidanceHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  guidanceTitle: {
-    flex: 1,
-  },
   checks: {
     gap: spacing.xxs,
+    marginTop: spacing.xs,
   },
   checkRow: {
     flexDirection: 'row',

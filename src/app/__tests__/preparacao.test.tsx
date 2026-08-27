@@ -63,6 +63,30 @@ describe('tela de preparação para EPI', () => {
     expect(getByText(`${APP_MESSAGES.face.sectorLabel}: Segurança`)).toBeTruthy();
   });
 
+  it('funciona com um funcionário que só tem id e nome, sem inventar dados', async () => {
+    // O reconhecimento facial real (galeria de embeddings) só conhece id e
+    // nome — matrícula/setor não existem nesse pipeline ainda.
+    setFaceRecognitionService({
+      recognize: async () => ({
+        status: 'recognized',
+        employee: { id: 'gallery-caio', nome: 'Caio' },
+        confidence: 0.9,
+      }),
+    });
+    const view = await renderScreen(
+      <>
+        <IdentifyAs />
+        <PreparationScreen />
+      </>,
+    );
+    await waitFor(() => expect(view.queryByText('Caio')).toBeTruthy());
+
+    expect(
+      view.queryByText(new RegExp(`^${APP_MESSAGES.face.registrationLabel}:`)),
+    ).toBeNull();
+    expect(view.queryByText(new RegExp(`^${APP_MESSAGES.face.sectorLabel}:`))).toBeNull();
+  });
+
   it('instrui o funcionário a se posicionar na marcação do chão', async () => {
     const { getByText } = await renderAfterIdentification();
 
