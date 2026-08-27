@@ -5,9 +5,8 @@ import { setEpiVerificationService } from '@/features/epi-detection/services/epi
 import { MockEpiVerificationService } from '@/features/epi-detection/services/MockEpiVerificationService';
 import { setFaceRecognitionService } from '@/features/face-recognition/services/faceRecognitionServiceFactory';
 import { MockFaceRecognitionService } from '@/features/face-recognition/services/MockFaceRecognitionService';
-import { pressAndSettle, renderScreen } from '@/test-utils/renderScreen';
+import { IdentifyAs, pressAndSettle, renderScreen } from '@/test-utils/renderScreen';
 
-import IdentificationScreen from '../identificacao';
 import PreparationScreen from '../preparacao';
 import VerificationScreen from '../verificacao';
 
@@ -40,13 +39,12 @@ const renderThroughFlow = async (scenario: string) => {
 
   const view = await renderScreen(
     <>
-      <IdentificationScreen />
+      <IdentifyAs />
       <PreparationScreen />
       <VerificationScreen />
     </>,
   );
 
-  await pressAndSettle(view.getByText(APP_MESSAGES.face.startButton));
   await waitFor(() => expect(view.queryByText(APP_MESSAGES.preparation.startButton)).toBeTruthy());
   await pressAndSettle(view.getByText(APP_MESSAGES.preparation.startButton));
 

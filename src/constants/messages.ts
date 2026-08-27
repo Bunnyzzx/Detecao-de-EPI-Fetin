@@ -87,6 +87,8 @@ export const APP_MESSAGES = {
     backHomeButton: 'Voltar ao Início',
     errorTitle: 'Falha na identificação',
     errorDescription: 'Não foi possível concluir a identificação. Tente novamente.',
+    noFaceTitle: 'Nenhum rosto detectado',
+    identifiedTitle: 'Usuário identificado',
     registrationLabel: 'Matrícula',
     sectorLabel: 'Setor',
     confidenceLabel: 'Confiança',

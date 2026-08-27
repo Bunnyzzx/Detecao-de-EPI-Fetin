@@ -1,59 +1,82 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import type { CameraView } from 'expo-camera';
 import { useRouter } from 'expo-router';
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { CameraViewport } from '@/components/camera';
 import { Screen, ScreenHeader, StepIndicator } from '@/components/layout';
 import { Button, Text } from '@/components/ui';
 import { APP_MESSAGES } from '@/constants/messages';
+import { useAutoFaceRecognition } from '@/features/face-recognition/face/useAutoFaceRecognition';
 import { useVerificationSession } from '@/features/verification-session/hooks/VerificationSessionContext';
 import { useHaptics } from '@/hooks/useHaptics';
 import { useTerminalMetrics } from '@/hooks/useTerminalMetrics';
 import { colors, radii, spacing } from '@/theme';
 
+/**
+ * Desfecho visual de uma rodada de análise.
+ *
+ * Deliberadamente sem "identificado, avançando..." nem qualquer avanço
+ * automático: esta etapa existe para observar o pipeline real funcionando
+ * repetidamente, não para decidir a sessão. Isso é trabalho de uma etapa
+ * futura, com confirmação temporal.
+ */
+type FaceOutcome = 'idle' | 'waiting' | 'no-face' | 'identified' | 'not-identified' | 'error';
+
 export default function IdentificationScreen() {
   const router = useRouter();
-  const { snapshot, startFaceRecognition, cancel, reset } = useVerificationSession();
+  const { cancel, reset } = useVerificationSession();
   const { impact } = useHaptics();
   const metrics = useTerminalMetrics();
 
-  const { state } = snapshot;
-  const isScanning = state === 'face_scanning';
-  const isUnknown = state === 'face_unknown';
-  const hasFailed = state === 'error';
-  const needsRetry = isUnknown || hasFailed;
+  const cameraRef = useRef<CameraView>(null);
+  const [active, setActive] = useState(false);
 
-  /**
-   * Trava síncrona contra duplo toque: `isScanning` só reflete o estado no
-   * próximo render, então dois toques no mesmo quadro escapariam dele.
-   */
-  const isRunningRef = useRef(false);
+  const { status, result } = useAutoFaceRecognition({ cameraRef, active });
 
-  const identify = useCallback(async () => {
-    if (isRunningRef.current) {
-      return;
-    }
-    isRunningRef.current = true;
+  const isPreparing = status === 'preparando';
+  const setupFailed = status === 'erro';
+  const hasPipelineError = result?.error != null;
+
+  // O pipeline só chega com `facesDetected > 0` e sem erro depois de calcular
+  // o embedding e comparar com a galeria: `match` sempre existe nesse ponto.
+  const outcome: FaceOutcome = setupFailed
+    ? 'error'
+    : !active
+      ? 'idle'
+      : hasPipelineError
+        ? 'error'
+        : result === null
+          ? 'waiting'
+          : result.facesDetected === 0
+            ? 'no-face'
+            : result.match?.passes
+              ? 'identified'
+              : 'not-identified';
+
+  const showsGuidanceCard = outcome === 'not-identified' || outcome === 'error';
+
+  const start = useCallback(() => {
     impact();
-
-    try {
-      const recognized = await startFaceRecognition();
-      if (recognized) {
-        router.replace('/preparacao');
-      }
-      // Não reconhecido permanece nesta tela: a orientação abaixo do visor
-      // muda e o funcionário tenta de novo, sem limite de tentativas.
-    } finally {
-      isRunningRef.current = false;
-    }
-  }, [impact, router, startFaceRecognition]);
+    setActive(true);
+  }, [impact]);
 
   const goHome = useCallback(() => {
     cancel();
     reset();
     router.replace('/');
   }, [cancel, reset, router]);
+
+  const neutralCopy = (): { title: string; detail: string } => {
+    if (outcome === 'no-face') {
+      return { title: APP_MESSAGES.face.noFaceTitle, detail: APP_MESSAGES.face.instructionDetail };
+    }
+    if (outcome === 'waiting') {
+      return { title: APP_MESSAGES.face.scanning, detail: APP_MESSAGES.face.scanningHint };
+    }
+    return { title: APP_MESSAGES.face.instruction, detail: APP_MESSAGES.face.instructionDetail };
+  };
 
   return (
     <Screen backgroundColor={colors.scanner.background}>
@@ -62,13 +85,27 @@ export default function IdentificationScreen() {
       <View style={styles.body}>
         {/*
           O visor nunca desmonta, nem quando ninguém é identificado: é olhando
-          para ele que a pessoa corrige posição, distância e enquadramento
-          antes de tentar de novo. Sem moldura sobreposta — a orientação é
-          dada por texto, abaixo.
+          para ele que a pessoa corrige posição, distância e enquadramento. Sem
+          moldura sobreposta — a orientação é dada por texto, abaixo.
         */}
-        <CameraViewport style={needsRetry ? styles.viewportCompact : styles.viewport} />
+        <CameraViewport
+          ref={cameraRef}
+          style={showsGuidanceCard ? styles.viewportCompact : styles.viewport}
+        />
 
-        {needsRetry ? (
+        {outcome === 'identified' ? (
+          <View style={styles.identifiedCard}>
+            <View style={styles.guidanceHeader}>
+              <MaterialCommunityIcons name="account-check" size={30} color={colors.status.approved} />
+              <Text variant="heading" color={colors.white} style={styles.guidanceTitle}>
+                {APP_MESSAGES.face.identifiedTitle}
+              </Text>
+            </View>
+            <Text variant="subheading" color={colors.slate[200]}>
+              {result?.match?.best?.nome ?? '—'}
+            </Text>
+          </View>
+        ) : showsGuidanceCard ? (
           <View style={styles.guidance}>
             <View style={styles.guidanceHeader}>
               <MaterialCommunityIcons
@@ -77,17 +114,17 @@ export default function IdentificationScreen() {
                 color={colors.status.warning}
               />
               <Text variant="heading" color={colors.white} style={styles.guidanceTitle}>
-                {hasFailed ? APP_MESSAGES.face.errorTitle : APP_MESSAGES.face.unknownTitle}
+                {outcome === 'error' ? APP_MESSAGES.face.errorTitle : APP_MESSAGES.face.unknownTitle}
               </Text>
             </View>
 
             <Text variant="body" color={colors.slate[300]}>
-              {hasFailed
+              {outcome === 'error'
                 ? APP_MESSAGES.face.errorDescription
                 : APP_MESSAGES.face.unknownDescription}
             </Text>
 
-            {isUnknown ? (
+            {outcome === 'not-identified' ? (
               <>
                 <Text variant="bodyStrong" color={colors.slate[200]}>
                   {APP_MESSAGES.face.unknownChecksTitle}
@@ -117,35 +154,45 @@ export default function IdentificationScreen() {
         ) : (
           <View style={styles.statusBlock}>
             <Text variant={metrics.instruction} color={colors.white} align="center">
-              {isScanning ? APP_MESSAGES.face.scanning : APP_MESSAGES.face.instruction}
+              {neutralCopy().title}
             </Text>
             <Text variant={metrics.instructionDetail} color={colors.slate[400]} align="center">
-              {isScanning
-                ? APP_MESSAGES.face.scanningHint
-                : APP_MESSAGES.face.instructionDetail}
+              {neutralCopy().detail}
             </Text>
           </View>
         )}
 
         <View style={styles.actions}>
-          {/* Durante a identificação não há ação alguma: nada a tocar duas vezes. */}
-          {isScanning ? null : (
-            <Button
-              label={needsRetry ? APP_MESSAGES.face.retryButton : APP_MESSAGES.face.startButton}
-              icon={needsRetry ? 'refresh' : 'face-recognition'}
-              size="terminal"
-              onPress={() => void identify()}
-            />
-          )}
-
-          {needsRetry ? (
+          {/* Durante o reconhecimento automático não há ação alguma: o laço já
+              tenta de novo sozinho a cada rodada, sem toque manual. Falha de
+              carregamento também não oferece "Iniciar": não há o que tentar
+              enquanto o detector/modelo não carregarem. */}
+          {setupFailed ? (
             <Button
               label={APP_MESSAGES.face.backHomeButton}
               variant="secondary"
               size="large"
               onPress={goHome}
             />
-          ) : null}
+          ) : active ? (
+            showsGuidanceCard ? (
+              <Button
+                label={APP_MESSAGES.face.backHomeButton}
+                variant="secondary"
+                size="large"
+                onPress={goHome}
+              />
+            ) : null
+          ) : (
+            <Button
+              label={APP_MESSAGES.face.startButton}
+              icon="face-recognition"
+              size="terminal"
+              disabled={isPreparing}
+              loading={isPreparing}
+              onPress={start}
+            />
+          )}
         </View>
       </View>
 
@@ -179,6 +226,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.status.warning,
     backgroundColor: colors.status.warningDeep,
+  },
+  identifiedCard: {
+    gap: spacing.sm,
+    padding: spacing.lg,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: colors.status.approved,
+    backgroundColor: colors.status.approvedDeep,
   },
   guidanceHeader: {
     flexDirection: 'row',

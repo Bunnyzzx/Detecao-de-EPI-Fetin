@@ -70,6 +70,7 @@
       "<rootDir>/jest.setup.ts"
     ],
     "moduleNameMapper": {
+      "\\.onnx$": "<rootDir>/src/test-utils/onnxAssetMock.js",
       "^@/(.*)$": "<rootDir>/src/$1"
     },
     "transformIgnorePatterns": [

@@ -3,9 +3,8 @@ import { waitFor } from '@testing-library/react-native';
 import { APP_MESSAGES } from '@/constants/messages';
 import { setFaceRecognitionService } from '@/features/face-recognition/services/faceRecognitionServiceFactory';
 import { MockFaceRecognitionService } from '@/features/face-recognition/services/MockFaceRecognitionService';
-import { pressAndSettle, renderScreen } from '@/test-utils/renderScreen';
+import { IdentifyAs, pressAndSettle, renderScreen } from '@/test-utils/renderScreen';
 
-import IdentificationScreen from '../identificacao';
 import PreparationScreen from '../preparacao';
 
 const mockReplace = jest.fn();
@@ -37,12 +36,11 @@ afterEach(() => {
 const renderAfterIdentification = async () => {
   const view = await renderScreen(
     <>
-      <IdentificationScreen />
+      <IdentifyAs />
       <PreparationScreen />
     </>,
   );
 
-  await pressAndSettle(view.getByText(APP_MESSAGES.face.startButton));
   await waitFor(() => expect(view.queryByText('Caio de Castro Yarouhas')).toBeTruthy());
 
   return view;
