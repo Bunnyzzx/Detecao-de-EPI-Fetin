@@ -1,34 +1,27 @@
 import type { CameraView } from 'expo-camera';
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 
 import { FaceNetSession } from '../onnx/FaceNetSession';
 
 import { FaceDetector } from './faceDetector';
 import { analyzePhoto, type PipelineResult } from './facePipeline';
 
-/**
- * Intervalo entre análises automáticas.
- *
- * Conservador e ainda não calibrado com dados reais de campo: o objetivo
- * inicial é "tempo real o suficiente" sem sobrecarregar o tablet, não uma
- * taxa otimizada.
- */
-export const AUTO_RECOGNITION_INTERVAL_MS = 1000;
-
 export type AutoFaceRecognitionStatus = 'preparando' | 'pronto' | 'analisando' | 'erro';
 
 export interface UseAutoFaceRecognitionOptions {
   cameraRef: RefObject<CameraView | null>;
-  /** Verdadeiro enquanto o laço de reconhecimento deve estar rodando. */
-  active: boolean;
-  /** Sobrescreve o intervalo padrão — usado pelos testes para não esperar segundos reais. */
-  intervalMs?: number;
 }
 
 export interface UseAutoFaceRecognitionResult {
   status: AutoFaceRecognitionStatus;
   setupError: string | null;
   result: PipelineResult | null;
+  /**
+   * Dispara uma única tentativa de reconhecimento: uma captura, uma análise,
+   * um resultado. Não faz nada se o detector/modelo ainda não carregaram ou
+   * se já existe uma tentativa em andamento.
+   */
+  recognize: () => void;
 }
 
 const emptyPipelineResult = (error: string): PipelineResult => ({
@@ -50,32 +43,33 @@ const emptyPipelineResult = (error: string): PipelineResult => ({
 });
 
 /**
- * Controlador do reconhecimento facial automático.
+ * Controlador de uma tentativa de reconhecimento facial.
  *
- * Não reimplementa nada do pipeline: apenas agenda chamadas repetidas a
- * `analyzePhoto`, mantendo detector e sessão do FaceNet vivos entre elas. A
- * próxima captura só é agendada depois que a anterior termina (sucesso ou
- * erro) — por construção nunca existem duas análises em voo ao mesmo tempo.
+ * Não reimplementa nada do pipeline: só orquestra uma chamada a
+ * `analyzePhoto`, mantendo detector e sessão do FaceNet vivos entre
+ * tentativas (recriá-los a cada vez pagaria de novo o quase 1 s de carga do
+ * FaceNet). Cada chamada a `recognize()` é uma tentativa isolada — quem
+ * decide se e quando tentar de novo é o chamador, não este hook.
  */
 export const useAutoFaceRecognition = ({
   cameraRef,
-  active,
-  intervalMs = AUTO_RECOGNITION_INTERVAL_MS,
 }: UseAutoFaceRecognitionOptions): UseAutoFaceRecognitionResult => {
   const [setupState, setSetupState] = useState<'preparando' | 'pronto' | 'erro'>('preparando');
   const [setupError, setSetupError] = useState<string | null>(null);
   const [result, setResult] = useState<PipelineResult | null>(null);
+  const [isRunning, setIsRunning] = useState(false);
 
   const detectorRef = useRef<FaceDetector | null>(null);
   const sessionRef = useRef<FaceNetSession | null>(null);
+  const runningRef = useRef(false);
+  const mountedRef = useRef(true);
 
   /**
    * Detector e modelo carregam uma única vez e ficam vivos enquanto este
-   * hook existir — recriá-los a cada análise pagaria de novo o quase 1 s de
-   * carga do FaceNet a cada tentativa.
+   * hook existir.
    */
   useEffect(() => {
-    let ativo = true;
+    mountedRef.current = true;
     const detector = new FaceDetector();
     const session = new FaceNetSession();
     detectorRef.current = detector;
@@ -85,47 +79,39 @@ export const useAutoFaceRecognition = ({
       try {
         await detector.initialize();
         await session.load();
-        if (!ativo) return;
+        if (!mountedRef.current) return;
         setSetupState('pronto');
       } catch (caught) {
-        if (!ativo) return;
+        if (!mountedRef.current) return;
         setSetupError(caught instanceof Error ? caught.message : String(caught));
         setSetupState('erro');
       }
     })();
 
     return () => {
-      ativo = false;
+      mountedRef.current = false;
       void session.release();
     };
   }, []);
 
-  useEffect(() => {
-    if (!active || setupState !== 'pronto') {
+  const recognize = useCallback(() => {
+    if (runningRef.current || setupState !== 'pronto') {
+      return;
+    }
+    const camera = cameraRef.current;
+    const detector = detectorRef.current;
+    const session = sessionRef.current;
+    if (!camera || !detector || !session) {
       return;
     }
 
-    let cancelado = false;
-    let timer: ReturnType<typeof setTimeout> | null = null;
+    runningRef.current = true;
+    setIsRunning(true);
 
-    const tick = async () => {
-      if (cancelado) {
-        return;
-      }
-      const camera = cameraRef.current;
-      const detector = detectorRef.current;
-      const session = sessionRef.current;
-
-      if (!camera || !detector || !session) {
-        // Câmera momentaneamente indisponível (ex.: permissão em transição):
-        // tenta de novo no próximo ciclo em vez de travar o laço.
-        timer = setTimeout(tick, intervalMs);
-        return;
-      }
-
+    void (async () => {
       try {
         const foto = await camera.takePictureAsync({ skipProcessing: true, quality: 1 });
-        if (cancelado) return;
+        if (!mountedRef.current) return;
         if (!foto?.uri) {
           throw new Error('A câmera não devolveu imagem.');
         }
@@ -137,38 +123,30 @@ export const useAutoFaceRecognition = ({
           detector,
           session,
         });
-        if (!cancelado) {
+        if (mountedRef.current) {
           setResult(analisado);
         }
       } catch (caught) {
-        if (!cancelado) {
+        if (mountedRef.current) {
           setResult(emptyPipelineResult(caught instanceof Error ? caught.message : String(caught)));
         }
       } finally {
-        if (!cancelado) {
-          timer = setTimeout(tick, intervalMs);
+        runningRef.current = false;
+        if (mountedRef.current) {
+          setIsRunning(false);
         }
       }
-    };
-
-    void tick();
-
-    return () => {
-      cancelado = true;
-      if (timer) {
-        clearTimeout(timer);
-      }
-    };
-  }, [active, setupState, cameraRef, intervalMs]);
+    })();
+  }, [cameraRef, setupState]);
 
   const status: AutoFaceRecognitionStatus =
     setupState === 'erro'
       ? 'erro'
       : setupState === 'preparando'
         ? 'preparando'
-        : active
+        : isRunning
           ? 'analisando'
           : 'pronto';
 
-  return { status, setupError, result };
+  return { status, setupError, result, recognize };
 };

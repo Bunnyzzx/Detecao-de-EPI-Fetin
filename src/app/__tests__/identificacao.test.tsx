@@ -2,10 +2,7 @@ import { waitFor } from '@testing-library/react-native';
 
 import { APP_MESSAGES } from '@/constants/messages';
 import type { PipelineResult } from '@/features/face-recognition/face/facePipeline';
-import {
-  useAutoFaceRecognition,
-  type UseAutoFaceRecognitionResult,
-} from '@/features/face-recognition/face/useAutoFaceRecognition';
+import type { AutoFaceRecognitionStatus } from '@/features/face-recognition/face/useAutoFaceRecognition';
 import type { MatchResult } from '@/features/face-recognition/gallery/matchEmbedding';
 import { pressAndSettle, renderScreen } from '@/test-utils/renderScreen';
 
@@ -16,17 +13,6 @@ const mockReplace = jest.fn();
 jest.mock('expo-router', () => ({
   useRouter: () => ({ replace: mockReplace, push: jest.fn(), back: jest.fn() }),
 }));
-
-/**
- * O laço automático real (câmera, ML Kit, FaceNet) não roda no Jest — nem
- * poderia, sem um tablet. O que esta tela precisa garantir é a *reação* ao
- * que o laço devolve, então o hook é dublado aqui; o laço em si (uma análise
- * por vez, parada no unmount, sem duplicar) é responsabilidade de
- * `useAutoFaceRecognition.test.ts`.
- */
-jest.mock('@/features/face-recognition/face/useAutoFaceRecognition');
-
-const mockedHook = useAutoFaceRecognition as jest.MockedFunction<typeof useAutoFaceRecognition>;
 
 const emptyResult = (): PipelineResult => ({
   facesDetected: 0,
@@ -57,23 +43,60 @@ const matchResult = (passes: boolean, nome = 'Caio'): MatchResult => ({
 });
 
 /**
- * Faz o hook reagir à mesma prop `active` que a tela passa: enquanto a tela
- * não pediu para rodar, o laço nunca teria um resultado; a partir do momento
- * em que pede, simula o resultado já disponível (o "quando" de cada rodada é
- * testado no hook, não aqui).
+ * O laço real (câmera, ML Kit, FaceNet) não roda no Jest. O que esta tela
+ * precisa garantir é a *reação* a uma tentativa — uma captura, um resultado,
+ * parado —, então o hook é dublado por um substituto minimalista que ainda
+ * assim usa `useState` real, para se comportar como o hook de verdade do
+ * ponto de vista de quem chama `recognize()`. O laço em si (concorrência,
+ * cleanup) é responsabilidade de `useAutoFaceRecognition.test.ts`.
  */
-const stubHook = (whenActive: Partial<UseAutoFaceRecognitionResult>) => {
-  mockedHook.mockImplementation(({ active }) =>
-    active
-      ? { status: 'analisando', setupError: null, result: null, ...whenActive }
-      : { status: 'pronto', setupError: null, result: null },
-  );
+let mockScenario: {
+  initialStatus: AutoFaceRecognitionStatus;
+  initialSetupError: string | null;
+  onRecognize: () => Promise<PipelineResult>;
 };
+
+jest.mock('@/features/face-recognition/face/useAutoFaceRecognition', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { useCallback, useState } = require('react');
+
+  return {
+    useAutoFaceRecognition: () => {
+      const [state, setState] = useState(() => ({
+        status: mockScenario.initialStatus,
+        setupError: mockScenario.initialSetupError,
+        result: null,
+      }));
+
+      const recognize = useCallback(() => {
+        setState((prev: { status: string }) =>
+          prev.status === 'analisando' ? prev : { ...prev, status: 'analisando' },
+        );
+        void mockScenario
+          .onRecognize()
+          .then((result) => setState({ status: 'pronto', setupError: null, result }));
+      }, []);
+
+      return { ...state, recognize };
+    },
+  };
+});
+
+const recognizeCallCount = jest.fn();
+const withRecognizeCount =
+  (impl: () => Promise<PipelineResult>) => (): Promise<PipelineResult> => {
+    recognizeCallCount();
+    return impl();
+  };
 
 beforeEach(() => {
   mockReplace.mockClear();
-  mockedHook.mockReset();
-  stubHook({});
+  recognizeCallCount.mockClear();
+  mockScenario = {
+    initialStatus: 'pronto',
+    initialSetupError: null,
+    onRecognize: withRecognizeCount(async () => emptyResult()),
+  };
 });
 
 describe('identificação facial — estado inicial', () => {
@@ -87,21 +110,25 @@ describe('identificação facial — estado inicial', () => {
   it('não inicia o reconhecimento sozinho', async () => {
     await renderScreen(<IdentificationScreen />);
 
-    expect(mockedHook).toHaveBeenCalledWith(expect.objectContaining({ active: false }));
+    expect(recognizeCallCount).not.toHaveBeenCalled();
   });
 
-  it('inicia o laço automático real ao tocar em "Iniciar Reconhecimento"', async () => {
+  it('ao tocar em "Iniciar Reconhecimento" faz exatamente UMA tentativa', async () => {
     const { getByText, queryByText } = await renderScreen(<IdentificationScreen />);
 
     await pressAndSettle(getByText(APP_MESSAGES.face.startButton));
 
-    expect(mockedHook).toHaveBeenLastCalledWith(expect.objectContaining({ active: true }));
-    // Sem botão de captura manual: uma vez iniciado, o laço roda sozinho.
+    expect(recognizeCallCount).toHaveBeenCalledTimes(1);
+    // Sem botão de captura manual: a foto em si é automática.
     expect(queryByText(APP_MESSAGES.face.startButton)).toBeNull();
   });
 
   it('nunca navega sozinha para outra tela, mesmo quando alguém é identificado', async () => {
-    stubHook({ result: { ...emptyResult(), facesDetected: 1, match: matchResult(true) } });
+    mockScenario.onRecognize = withRecognizeCount(async () => ({
+      ...emptyResult(),
+      facesDetected: 1,
+      match: matchResult(true),
+    }));
     const { getByText } = await renderScreen(<IdentificationScreen />);
 
     await pressAndSettle(getByText(APP_MESSAGES.face.startButton));
@@ -110,7 +137,7 @@ describe('identificação facial — estado inicial', () => {
   });
 
   it('desabilita o início enquanto o detector e o modelo carregam', async () => {
-    mockedHook.mockReturnValue({ status: 'preparando', setupError: null, result: null });
+    mockScenario.initialStatus = 'preparando';
     const { getByLabelText } = await renderScreen(<IdentificationScreen />);
 
     expect(getByLabelText(APP_MESSAGES.face.startButton).props.accessibilityState?.disabled).toBe(
@@ -119,54 +146,78 @@ describe('identificação facial — estado inicial', () => {
   });
 });
 
-describe('identificação facial — analisando', () => {
-  it('mostra que está identificando enquanto nenhum resultado chegou', async () => {
+describe('identificação facial — resultado permanece parado', () => {
+  it('mostra "identificando" enquanto a tentativa está em andamento', async () => {
+    let liberar: () => void = () => {};
+    mockScenario.onRecognize = withRecognizeCount(
+      () => new Promise((resolve) => (liberar = () => resolve(emptyResult()))),
+    );
     const { getByText, queryByText } = await renderScreen(<IdentificationScreen />);
 
     await pressAndSettle(getByText(APP_MESSAGES.face.startButton));
 
     expect(getByText(APP_MESSAGES.face.scanning)).toBeTruthy();
-    expect(getByText(APP_MESSAGES.face.scanningHint)).toBeTruthy();
     expect(queryByText(APP_MESSAGES.face.startButton)).toBeNull();
+
+    liberar();
   });
 
-  it('trata zero rostos como estado normal, não como erro', async () => {
-    stubHook({ result: emptyResult() });
+  it('trata zero rostos como estado normal e para — sem nova captura sozinha', async () => {
     const { getByText, queryByText } = await renderScreen(<IdentificationScreen />);
 
     await pressAndSettle(getByText(APP_MESSAGES.face.startButton));
 
     expect(getByText(APP_MESSAGES.face.noFaceTitle)).toBeTruthy();
     expect(queryByText(APP_MESSAGES.face.errorTitle)).toBeNull();
-    expect(queryByText(APP_MESSAGES.face.unknownTitle)).toBeNull();
-  });
-});
+    expect(recognizeCallCount).toHaveBeenCalledTimes(1);
 
-describe('identificação facial — funcionário identificado', () => {
-  it('mostra o nome de quem foi identificado', async () => {
-    stubHook({ result: { ...emptyResult(), facesDetected: 1, match: matchResult(true, 'Caio') } });
+    // Passado algum tempo, continua parado no mesmo resultado.
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(recognizeCallCount).toHaveBeenCalledTimes(1);
+  });
+
+  it('identificado permanece visível, sem nova captura nem navegação', async () => {
+    mockScenario.onRecognize = withRecognizeCount(async () => ({
+      ...emptyResult(),
+      facesDetected: 1,
+      match: matchResult(true, 'Caio'),
+    }));
     const { getByText } = await renderScreen(<IdentificationScreen />);
 
     await pressAndSettle(getByText(APP_MESSAGES.face.startButton));
 
     expect(getByText(APP_MESSAGES.face.identifiedTitle)).toBeTruthy();
     expect(getByText('Caio')).toBeTruthy();
+
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(recognizeCallCount).toHaveBeenCalledTimes(1);
+    expect(mockReplace).not.toHaveBeenCalled();
   });
 
-  it('continua rodando: sem botão de avançar', async () => {
-    stubHook({ result: { ...emptyResult(), facesDetected: 1, match: matchResult(true, 'Caio') } });
-    const { queryByText, getByText } = await renderScreen(<IdentificationScreen />);
+  it('não identificado para no resultado, sem nova captura sozinha', async () => {
+    mockScenario.onRecognize = withRecognizeCount(async () => ({
+      ...emptyResult(),
+      facesDetected: 1,
+      match: matchResult(false),
+    }));
+    const { getByText } = await renderScreen(<IdentificationScreen />);
 
     await pressAndSettle(getByText(APP_MESSAGES.face.startButton));
 
-    expect(queryByText(APP_MESSAGES.preparation.startButton)).toBeNull();
-    expect(mockReplace).not.toHaveBeenCalled();
+    expect(getByText(APP_MESSAGES.face.unknownTitle)).toBeTruthy();
+
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(recognizeCallCount).toHaveBeenCalledTimes(1);
   });
 });
 
-describe('identificação facial — funcionário não identificado', () => {
+describe('identificação facial — tentar novamente', () => {
   const renderNotIdentified = async () => {
-    stubHook({ result: { ...emptyResult(), facesDetected: 1, match: matchResult(false) } });
+    mockScenario.onRecognize = withRecognizeCount(async () => ({
+      ...emptyResult(),
+      facesDetected: 1,
+      match: matchResult(false),
+    }));
     const view = await renderScreen(<IdentificationScreen />);
 
     await pressAndSettle(view.getByText(APP_MESSAGES.face.startButton));
@@ -174,11 +225,27 @@ describe('identificação facial — funcionário não identificado', () => {
     return view;
   };
 
-  it('explica que não foi possível identificar', async () => {
+  it('oferece tentar novamente e voltar ao início', async () => {
     const { getByText } = await renderNotIdentified();
 
-    expect(getByText(APP_MESSAGES.face.unknownTitle)).toBeTruthy();
-    expect(getByText(APP_MESSAGES.face.unknownDescription)).toBeTruthy();
+    expect(getByText(APP_MESSAGES.face.retryButton)).toBeTruthy();
+    expect(getByText(APP_MESSAGES.face.backHomeButton)).toBeTruthy();
+  });
+
+  it('"tentar novamente" dispara exatamente mais UMA tentativa', async () => {
+    const { getByText } = await renderNotIdentified();
+    expect(recognizeCallCount).toHaveBeenCalledTimes(1);
+
+    mockScenario.onRecognize = withRecognizeCount(async () => ({
+      ...emptyResult(),
+      facesDetected: 1,
+      match: matchResult(true, 'Caio'),
+    }));
+    await pressAndSettle(getByText(APP_MESSAGES.face.retryButton));
+
+    // Uma da tentativa inicial (renderNotIdentified) + uma do "tentar novamente".
+    expect(recognizeCallCount).toHaveBeenCalledTimes(2);
+    expect(getByText(APP_MESSAGES.face.identifiedTitle)).toBeTruthy();
   });
 
   it('lista as possíveis causas sem afirmar uma delas', async () => {
@@ -202,24 +269,22 @@ describe('identificação facial — funcionário não identificado', () => {
     expect(mockReplace).not.toHaveBeenCalled();
   });
 
-  it('continua tentando sozinha: sem botão de tentar novamente', async () => {
-    const { queryByText } = await renderNotIdentified();
+  it('sem rosto também oferece tentar novamente', async () => {
+    const { getByText } = await renderScreen(<IdentificationScreen />);
 
-    expect(queryByText(APP_MESSAGES.face.retryButton)).toBeNull();
-  });
+    await pressAndSettle(getByText(APP_MESSAGES.face.startButton));
 
-  it('oferece voltar ao início', async () => {
-    const { getByText } = await renderNotIdentified();
-
-    await pressAndSettle(getByText(APP_MESSAGES.face.backHomeButton));
-
-    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/'));
+    expect(getByText(APP_MESSAGES.face.noFaceTitle)).toBeTruthy();
+    expect(getByText(APP_MESSAGES.face.retryButton)).toBeTruthy();
   });
 });
 
 describe('identificação facial — erro técnico', () => {
   it('distingue falha técnica de funcionário não identificado', async () => {
-    stubHook({ result: { ...emptyResult(), error: 'Falha ao decodificar o recorte.' } });
+    mockScenario.onRecognize = withRecognizeCount(async () => ({
+      ...emptyResult(),
+      error: 'Falha ao decodificar o recorte.',
+    }));
     const { getByText, queryByText } = await renderScreen(<IdentificationScreen />);
 
     await pressAndSettle(getByText(APP_MESSAGES.face.startButton));
@@ -229,12 +294,24 @@ describe('identificação facial — erro técnico', () => {
     expect(queryByText(APP_MESSAGES.face.noFaceTitle)).toBeNull();
   });
 
+  it('não tenta de novo sozinho após erro técnico', async () => {
+    mockScenario.onRecognize = withRecognizeCount(async () => ({
+      ...emptyResult(),
+      error: 'Falha ao decodificar o recorte.',
+    }));
+    const { getByText } = await renderScreen(<IdentificationScreen />);
+    await pressAndSettle(getByText(APP_MESSAGES.face.startButton));
+
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(recognizeCallCount).toHaveBeenCalledTimes(1);
+  });
+
   it('também aparece quando o detector/modelo falham ao carregar', async () => {
-    mockedHook.mockReturnValue({ status: 'erro', setupError: 'ONNX indisponível', result: null });
+    mockScenario.initialStatus = 'erro';
+    mockScenario.initialSetupError = 'ONNX indisponível';
     const { getByText, queryByText } = await renderScreen(<IdentificationScreen />);
 
     expect(getByText(APP_MESSAGES.face.errorTitle)).toBeTruthy();
-    // Nada a tentar enquanto o carregamento não funcionar.
     expect(queryByText(APP_MESSAGES.face.startButton)).toBeNull();
   });
 });
@@ -243,8 +320,6 @@ describe('identificação facial — voltar ao início', () => {
   it('retorna para a rota inicial a partir do cabeçalho', async () => {
     const { getByLabelText } = await renderScreen(<IdentificationScreen />);
 
-    // ScreenHeader expõe a ação de voltar por acessibilidade, disponível em
-    // qualquer estado — inclusive durante o reconhecimento automático.
     const backButton = getByLabelText(/voltar/i);
     await pressAndSettle(backButton);
 

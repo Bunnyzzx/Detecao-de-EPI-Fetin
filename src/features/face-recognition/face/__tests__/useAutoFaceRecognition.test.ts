@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react-native';
+import { act, renderHook, waitFor } from '@testing-library/react-native';
 import type { CameraView } from 'expo-camera';
 import type { RefObject } from 'react';
 
@@ -54,7 +54,7 @@ const matchResult = (passes: boolean, nome = 'Caio'): MatchResult => ({
   passes,
 });
 
-/** Câmera falsa: só o método que o laço realmente chama. */
+/** Câmera falsa: só o método que o hook realmente chama. */
 const fakeCameraRef = (takePictureAsync: jest.Mock) =>
   ({ current: { takePictureAsync } }) as unknown as RefObject<CameraView>;
 
@@ -64,52 +64,123 @@ beforeEach(() => {
   mockedAnalyzePhoto.mockReset();
 });
 
-describe('carga do detector e do modelo', () => {
-  it('carrega uma única vez, mesmo alternando o laço várias vezes', async () => {
-    const { FaceDetector } = jest.requireMock('../faceDetector');
-    const { FaceNetSession } = jest.requireMock('../../onnx/FaceNetSession');
-    // Nunca resolve: o que este teste verifica é a carga do detector/modelo,
-    // não o resultado de uma captura — uma captura pendente para sempre evita
-    // que o laço reagende `setTimeout` repetidamente enquanto alternamos
-    // `active` logo em seguida.
-    const takePictureAsync = jest.fn().mockReturnValue(new Promise(() => {}));
-    mockedAnalyzePhoto.mockResolvedValue(emptyResult());
-
-    const { result, rerender, unmount } = await renderHook(
-      ({ active }: { active: boolean }) =>
-        useAutoFaceRecognition({ cameraRef: fakeCameraRef(takePictureAsync), active }),
-      { initialProps: { active: false } },
-    );
-
-    await waitFor(() => expect(result.current.status).toBe('pronto'));
-
-    await rerender({ active: true });
-    await rerender({ active: false });
-    await rerender({ active: true });
-
-    expect(FaceDetector).toHaveBeenCalledTimes(1);
-    expect(FaceNetSession).toHaveBeenCalledTimes(1);
-
-    await unmount();
-  });
-});
-
-describe('laço automático', () => {
-  it('não captura nada antes de ser ativado', async () => {
+describe('antes de qualquer tentativa', () => {
+  it('não captura nada até recognize() ser chamado', async () => {
     const takePictureAsync = jest.fn();
     const { result, unmount } = await renderHook(() =>
-      useAutoFaceRecognition({ cameraRef: fakeCameraRef(takePictureAsync), active: false }),
+      useAutoFaceRecognition({ cameraRef: fakeCameraRef(takePictureAsync) }),
     );
 
     await waitFor(() => expect(result.current.status).toBe('pronto'));
     await wait(20);
 
     expect(takePictureAsync).not.toHaveBeenCalled();
+    expect(result.current.result).toBeNull();
+
+    await unmount();
+  });
+});
+
+describe('uma tentativa', () => {
+  const renderPronto = async (takePictureAsync: jest.Mock) => {
+    const hook = await renderHook(() =>
+      useAutoFaceRecognition({ cameraRef: fakeCameraRef(takePictureAsync) }),
+    );
+    await waitFor(() => expect(hook.result.current.status).toBe('pronto'));
+    return hook;
+  };
+
+  it('recognize() executa exatamente UMA captura e análise', async () => {
+    const takePictureAsync = jest
+      .fn()
+      .mockResolvedValue({ uri: 'file://foto.jpg', width: 100, height: 100 });
+    mockedAnalyzePhoto.mockResolvedValue(emptyResult({ facesDetected: 0 }));
+
+    const { result, unmount } = await renderPronto(takePictureAsync);
+
+    await act(() => result.current.recognize());
+
+    await waitFor(() => expect(result.current.result).not.toBeNull());
+
+    expect(takePictureAsync).toHaveBeenCalledTimes(1);
+    expect(mockedAnalyzePhoto).toHaveBeenCalledTimes(1);
 
     await unmount();
   });
 
-  it('nunca inicia uma nova captura antes da anterior terminar', async () => {
+  it('após identificado, não faz nova captura sozinho', async () => {
+    const takePictureAsync = jest
+      .fn()
+      .mockResolvedValue({ uri: 'file://foto.jpg', width: 100, height: 100 });
+    mockedAnalyzePhoto.mockResolvedValue(
+      emptyResult({ facesDetected: 1, match: matchResult(true, 'Caio') }),
+    );
+
+    const { result, unmount } = await renderPronto(takePictureAsync);
+    await act(() => result.current.recognize());
+    await waitFor(() => expect(result.current.result?.match?.passes).toBe(true));
+
+    await wait(30);
+    expect(takePictureAsync).toHaveBeenCalledTimes(1);
+
+    await unmount();
+  });
+
+  it('após não identificado, não faz nova captura sozinho', async () => {
+    const takePictureAsync = jest
+      .fn()
+      .mockResolvedValue({ uri: 'file://foto.jpg', width: 100, height: 100 });
+    mockedAnalyzePhoto.mockResolvedValue(
+      emptyResult({ facesDetected: 1, match: matchResult(false) }),
+    );
+
+    const { result, unmount } = await renderPronto(takePictureAsync);
+    await act(() => result.current.recognize());
+    await waitFor(() => expect(result.current.result?.match).not.toBeNull());
+
+    await wait(30);
+    expect(takePictureAsync).toHaveBeenCalledTimes(1);
+
+    await unmount();
+  });
+
+  it('após zero rostos, não faz nova captura sozinho', async () => {
+    const takePictureAsync = jest
+      .fn()
+      .mockResolvedValue({ uri: 'file://foto.jpg', width: 100, height: 100 });
+    mockedAnalyzePhoto.mockResolvedValue(emptyResult({ facesDetected: 0 }));
+
+    const { result, unmount } = await renderPronto(takePictureAsync);
+    await act(() => result.current.recognize());
+    await waitFor(() => expect(result.current.result).not.toBeNull());
+
+    await wait(30);
+    expect(takePictureAsync).toHaveBeenCalledTimes(1);
+    expect(result.current.result?.error).toBeNull();
+
+    await unmount();
+  });
+
+  it('erro técnico não gera retry automático', async () => {
+    // `analyzePhoto` nunca rejeita — capta os próprios erros internamente e os
+    // devolve em `result.error` (ver facePipeline.ts). A falha técnica real
+    // que este hook precisa tratar é a câmera em si.
+    const takePictureAsync = jest.fn().mockRejectedValue(new Error('Falha ao acessar a câmera.'));
+
+    const { result, unmount } = await renderPronto(takePictureAsync);
+    await act(() => result.current.recognize());
+    await waitFor(() => expect(result.current.result?.error).not.toBeNull());
+
+    expect(result.current.result?.error).toContain('Falha ao acessar a câmera');
+    expect(mockedAnalyzePhoto).not.toHaveBeenCalled();
+
+    await wait(30);
+    expect(takePictureAsync).toHaveBeenCalledTimes(1);
+
+    await unmount();
+  });
+
+  it('bloqueia uma segunda chamada enquanto a primeira está em andamento', async () => {
     const takePictureAsync = jest
       .fn()
       .mockResolvedValue({ uri: 'file://foto.jpg', width: 100, height: 100 });
@@ -121,161 +192,70 @@ describe('laço automático', () => {
         }),
     );
 
-    const { unmount } = await renderHook(() =>
-      useAutoFaceRecognition({
-        cameraRef: fakeCameraRef(takePictureAsync),
-        active: true,
-        intervalMs: 5,
-      }),
-    );
+    const { result, unmount } = await renderPronto(takePictureAsync);
 
-    await waitFor(() => expect(mockedAnalyzePhoto).toHaveBeenCalledTimes(1));
+    await act(() => {
+      result.current.recognize();
+      // Simula toques repetidos antes da primeira tentativa terminar.
+      result.current.recognize();
+      result.current.recognize();
+    });
 
-    // Bem mais que o intervalo: se houvesse sobreposição, uma segunda captura
-    // já teria começado mesmo com a primeira análise ainda pendente.
-    await wait(40);
+    await waitFor(() => expect(result.current.status).toBe('analisando'));
     expect(takePictureAsync).toHaveBeenCalledTimes(1);
 
     liberarAnalise(emptyResult());
+    await waitFor(() => expect(result.current.status).toBe('pronto'));
+    expect(takePictureAsync).toHaveBeenCalledTimes(1);
 
+    await unmount();
+  });
+
+  it('"tentar novamente" (nova chamada explícita) executa mais uma tentativa', async () => {
+    const takePictureAsync = jest
+      .fn()
+      .mockResolvedValue({ uri: 'file://foto.jpg', width: 100, height: 100 });
+    mockedAnalyzePhoto.mockResolvedValue(emptyResult({ facesDetected: 0 }));
+
+    const { result, unmount } = await renderPronto(takePictureAsync);
+
+    await act(() => result.current.recognize());
+    await waitFor(() => expect(result.current.result).not.toBeNull());
+    expect(takePictureAsync).toHaveBeenCalledTimes(1);
+
+    await act(() => result.current.recognize());
     await waitFor(() => expect(takePictureAsync).toHaveBeenCalledTimes(2));
-
-    await unmount();
-  });
-
-  it('para completamente ao desmontar', async () => {
-    const takePictureAsync = jest
-      .fn()
-      .mockResolvedValue({ uri: 'file://foto.jpg', width: 100, height: 100 });
-    mockedAnalyzePhoto.mockResolvedValue(emptyResult());
-
-    const { unmount } = await renderHook(() =>
-      useAutoFaceRecognition({
-        cameraRef: fakeCameraRef(takePictureAsync),
-        active: true,
-        intervalMs: 5,
-      }),
-    );
-
-    await waitFor(() => expect(takePictureAsync).toHaveBeenCalled());
-    const chamadasAntes = takePictureAsync.mock.calls.length;
-
-    await unmount();
-    await wait(40);
-
-    expect(takePictureAsync.mock.calls.length).toBe(chamadasAntes);
-  });
-
-  it('para ao desativar e retoma ao reativar, sem duplicar o laço', async () => {
-    const takePictureAsync = jest
-      .fn()
-      .mockResolvedValue({ uri: 'file://foto.jpg', width: 100, height: 100 });
-    mockedAnalyzePhoto.mockResolvedValue(emptyResult());
-
-    const { rerender, unmount } = await renderHook(
-      ({ active }: { active: boolean }) =>
-        useAutoFaceRecognition({
-          cameraRef: fakeCameraRef(takePictureAsync),
-          active,
-          intervalMs: 5,
-        }),
-      { initialProps: { active: true } },
-    );
-
-    await waitFor(() => expect(takePictureAsync).toHaveBeenCalled());
-
-    await rerender({ active: false });
-    const chamadasPausado = takePictureAsync.mock.calls.length;
-    await wait(30);
-    expect(takePictureAsync.mock.calls.length).toBe(chamadasPausado);
-
-    await rerender({ active: true });
-    await waitFor(() =>
-      expect(takePictureAsync.mock.calls.length).toBeGreaterThan(chamadasPausado),
-    );
 
     await unmount();
   });
 });
 
-describe('resultados propagados', () => {
-  const renderAtivo = (analise: PipelineResult) => {
+describe('ciclo de vida', () => {
+  it('não atualiza estado nem lança depois do unmount', async () => {
     const takePictureAsync = jest
       .fn()
       .mockResolvedValue({ uri: 'file://foto.jpg', width: 100, height: 100 });
-    mockedAnalyzePhoto.mockResolvedValue(analise);
-
-    return renderHook(() =>
-      useAutoFaceRecognition({
-        cameraRef: fakeCameraRef(takePictureAsync),
-        active: true,
-        intervalMs: 5,
-      }),
+    let liberarAnalise: (value: PipelineResult) => void = () => {};
+    mockedAnalyzePhoto.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          liberarAnalise = resolve;
+        }),
     );
-  };
-
-  it('zero rostos não vira erro', async () => {
-    const { result, unmount } = await renderAtivo(emptyResult({ facesDetected: 0 }));
-
-    await waitFor(() => expect(result.current.result).not.toBeNull());
-
-    expect(result.current.result?.facesDetected).toBe(0);
-    expect(result.current.result?.error).toBeNull();
-
-    await unmount();
-  });
-
-  it('propaga funcionário identificado', async () => {
-    const { result, unmount } = await renderAtivo(
-      emptyResult({ facesDetected: 1, match: matchResult(true, 'Caio') }),
-    );
-
-    await waitFor(() => expect(result.current.result?.match?.passes).toBe(true));
-
-    expect(result.current.result?.match?.best?.nome).toBe('Caio');
-
-    await unmount();
-  });
-
-  it('propaga funcionário não identificado', async () => {
-    const { result, unmount } = await renderAtivo(
-      emptyResult({ facesDetected: 1, match: matchResult(false) }),
-    );
-
-    await waitFor(() => expect(result.current.result?.match).not.toBeNull());
-
-    expect(result.current.result?.match?.passes).toBe(false);
-
-    await unmount();
-  });
-
-  it('propaga falha técnica da captura como erro, distinto de não identificado', async () => {
-    // `analyzePhoto` nunca rejeita — capta os próprios erros internamente e
-    // os devolve em `result.error` (ver facePipeline.ts). A falha técnica
-    // real que este laço precisa tratar é a câmera em si.
-    //
-    // Só a primeira chamada falha; da segunda em diante a captura fica
-    // pendente para sempre, então o laço não continua tentando de novo a
-    // cada 5 ms enquanto o teste ainda está lendo o resultado da primeira.
-    const takePictureAsync = jest
-      .fn()
-      .mockRejectedValueOnce(new Error('Falha ao acessar a câmera.'))
-      .mockReturnValue(new Promise(() => {}));
 
     const { result, unmount } = await renderHook(() =>
-      useAutoFaceRecognition({
-        cameraRef: fakeCameraRef(takePictureAsync),
-        active: true,
-        intervalMs: 5,
-      }),
+      useAutoFaceRecognition({ cameraRef: fakeCameraRef(takePictureAsync) }),
     );
+    await waitFor(() => expect(result.current.status).toBe('pronto'));
 
-    await waitFor(() => expect(result.current.result?.error).not.toBeNull());
-
-    expect(result.current.result?.error).toContain('Falha ao acessar a câmera');
-    expect(result.current.result?.match).toBeNull();
-    expect(mockedAnalyzePhoto).not.toHaveBeenCalled();
+    await act(() => result.current.recognize());
+    await waitFor(() => expect(takePictureAsync).toHaveBeenCalled());
 
     await unmount();
+
+    // A análise só termina depois do unmount: não deve lançar nem atualizar
+    // estado de um componente que não existe mais.
+    expect(() => liberarAnalise(emptyResult())).not.toThrow();
+    await wait(20);
   });
 });

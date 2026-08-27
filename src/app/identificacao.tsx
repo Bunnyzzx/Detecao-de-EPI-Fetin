@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { CameraView } from 'expo-camera';
 import { useRouter } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { CameraViewport } from '@/components/camera';
@@ -15,12 +15,11 @@ import { useTerminalMetrics } from '@/hooks/useTerminalMetrics';
 import { colors, radii, spacing } from '@/theme';
 
 /**
- * Desfecho visual de uma rodada de análise.
+ * Desfecho visual de uma tentativa.
  *
- * Deliberadamente sem "identificado, avançando..." nem qualquer avanço
- * automático: esta etapa existe para observar o pipeline real funcionando
- * repetidamente, não para decidir a sessão. Isso é trabalho de uma etapa
- * futura, com confirmação temporal.
+ * Cada tentativa é uma captura só: o resultado fica na tela até o funcionário
+ * pedir uma nova (ou sair). Nenhum avanço automático — isso é trabalho de uma
+ * etapa futura, com confirmação temporal.
  */
 type FaceOutcome = 'idle' | 'waiting' | 'no-face' | 'identified' | 'not-identified' | 'error';
 
@@ -31,11 +30,11 @@ export default function IdentificationScreen() {
   const metrics = useTerminalMetrics();
 
   const cameraRef = useRef<CameraView>(null);
-  const [active, setActive] = useState(false);
 
-  const { status, result } = useAutoFaceRecognition({ cameraRef, active });
+  const { status, result, recognize } = useAutoFaceRecognition({ cameraRef });
 
   const isPreparing = status === 'preparando';
+  const isRunning = status === 'analisando';
   const setupFailed = status === 'erro';
   const hasPipelineError = result?.error != null;
 
@@ -43,24 +42,27 @@ export default function IdentificationScreen() {
   // o embedding e comparar com a galeria: `match` sempre existe nesse ponto.
   const outcome: FaceOutcome = setupFailed
     ? 'error'
-    : !active
-      ? 'idle'
-      : hasPipelineError
-        ? 'error'
-        : result === null
-          ? 'waiting'
+    : isRunning
+      ? 'waiting'
+      : result === null
+        ? 'idle'
+        : hasPipelineError
+          ? 'error'
           : result.facesDetected === 0
             ? 'no-face'
             : result.match?.passes
               ? 'identified'
               : 'not-identified';
 
+  // As três só param à espera de uma nova tentativa explícita.
+  const needsRetry =
+    outcome === 'no-face' || outcome === 'not-identified' || outcome === 'error';
   const showsGuidanceCard = outcome === 'not-identified' || outcome === 'error';
 
-  const start = useCallback(() => {
+  const attempt = useCallback(() => {
     impact();
-    setActive(true);
-  }, [impact]);
+    recognize();
+  }, [impact, recognize]);
 
   const goHome = useCallback(() => {
     cancel();
@@ -163,10 +165,9 @@ export default function IdentificationScreen() {
         )}
 
         <View style={styles.actions}>
-          {/* Durante o reconhecimento automático não há ação alguma: o laço já
-              tenta de novo sozinho a cada rodada, sem toque manual. Falha de
-              carregamento também não oferece "Iniciar": não há o que tentar
-              enquanto o detector/modelo não carregarem. */}
+          {/* Enquanto a tentativa está em andamento não há ação alguma: nada
+              a tocar duas vezes. Falha de carregamento também não oferece
+              "Iniciar" — não há o que tentar sem detector/modelo. */}
           {setupFailed ? (
             <Button
               label={APP_MESSAGES.face.backHomeButton}
@@ -174,15 +175,21 @@ export default function IdentificationScreen() {
               size="large"
               onPress={goHome}
             />
-          ) : active ? (
-            showsGuidanceCard ? (
+          ) : isRunning || outcome === 'identified' ? null : needsRetry ? (
+            <>
+              <Button
+                label={APP_MESSAGES.face.retryButton}
+                icon="refresh"
+                size="terminal"
+                onPress={attempt}
+              />
               <Button
                 label={APP_MESSAGES.face.backHomeButton}
                 variant="secondary"
                 size="large"
                 onPress={goHome}
               />
-            ) : null
+            </>
           ) : (
             <Button
               label={APP_MESSAGES.face.startButton}
@@ -190,7 +197,7 @@ export default function IdentificationScreen() {
               size="terminal"
               disabled={isPreparing}
               loading={isPreparing}
-              onPress={start}
+              onPress={attempt}
             />
           )}
         </View>
