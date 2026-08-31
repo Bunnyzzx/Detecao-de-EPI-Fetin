@@ -49,3 +49,15 @@ export const isFaceApiConfigured = (): boolean => {
     return false;
   }
 };
+
+/** Status individual de cada parte da configuração — para telas de diagnóstico/provisionamento. */
+export const isFaceApiUrlConfigured = (): boolean => Boolean(env.faceApiUrl);
+
+export const isFacePointIdConfigured = (): boolean => {
+  try {
+    parsePointId(env.facePointIdRaw);
+    return true;
+  } catch {
+    return false;
+  }
+};
