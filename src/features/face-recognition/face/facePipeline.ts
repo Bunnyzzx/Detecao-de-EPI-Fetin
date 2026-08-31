@@ -10,12 +10,15 @@ import type { FaceNetSession } from '../onnx/FaceNetSession';
 import type { FaceDetector, DetectedFace } from './faceDetector';
 import { pickLargestBox, toSquareBox, type Box } from './faceGeometry';
 
-export interface PipelineTimings {
+export interface ExtractionTimings {
   detectMs: number;
   cropMs: number;
   decodeMs: number;
   tensorMs: number;
   inferenceMs: number;
+}
+
+export interface PipelineTimings extends ExtractionTimings {
   matchMs: number;
   totalMs: number;
 }
@@ -46,7 +49,39 @@ export class PipelineError extends Error {
   }
 }
 
-const emptyResult = (): PipelineResult => ({
+/**
+ * Dados biométricos transitórios de uma extração: o embedding em si, mais os
+ * metadados de detecção/recorte que o levaram até ali.
+ *
+ * Não inclui `match` nem decisão alguma — é o resultado puro de rodar ML Kit
+ * + FaceNet sobre uma foto. `analyzePhoto` usa isso para decidir localmente
+ * (comparação com a galeria); um fluxo operacional futuro poderia usar o
+ * mesmo `embedding` para consultar o servidor, sem rodar ML Kit/FaceNet de
+ * novo para a mesma captura.
+ *
+ * `embedding` é transitório: existe só durante esta chamada, nunca é
+ * persistido nem deve ser logado por extenso (só `embeddingDim`/`embeddingNorm`).
+ */
+export interface FaceEmbeddingExtraction {
+  facesDetected: number;
+  imageWidth: number;
+  imageHeight: number;
+  rawBox: Box | null;
+  cropBox: Box | null;
+  headEulerAngleX: number | null;
+  headEulerAngleY: number | null;
+  headEulerAngleZ: number | null;
+  trackingId: number | null;
+  /** Float32Array(512), já L2-normalizado pelo grafo ONNX. `null` se nenhum rosto foi extraído. */
+  embedding: Float32Array | null;
+  embeddingDim: number | null;
+  embeddingNorm: number | null;
+  cropPreviewUri: string | null;
+  timings: ExtractionTimings | null;
+  error: string | null;
+}
+
+const emptyExtraction = (): FaceEmbeddingExtraction => ({
   facesDetected: 0,
   imageWidth: 0,
   imageHeight: 0,
@@ -56,34 +91,41 @@ const emptyResult = (): PipelineResult => ({
   headEulerAngleY: null,
   headEulerAngleZ: null,
   trackingId: null,
+  embedding: null,
   embeddingDim: null,
   embeddingNorm: null,
-  match: null,
-  timings: null,
   cropPreviewUri: null,
+  timings: null,
   error: null,
 });
 
+const zeroExtractionTimings = (parcial: Partial<ExtractionTimings>): ExtractionTimings => ({
+  detectMs: 0,
+  cropMs: 0,
+  decodeMs: 0,
+  tensorMs: 0,
+  inferenceMs: 0,
+  ...parcial,
+});
+
 /**
- * Percorre foto → rosto → recorte → tensor → embedding → galeria.
+ * Percorre foto → rosto → recorte → tensor → embedding.
  *
- * Cada etapa é cronometrada separadamente porque o objetivo desta fase é
- * medir, não otimizar. Nenhum limiar é ajustado aqui: a regra é aplicada tal
- * como está e o resultado bruto vai inteiro para a tela.
+ * Extração pura: não decide nada sobre a identidade da pessoa, não compara
+ * com galeria nenhuma. Cada etapa é cronometrada separadamente porque o
+ * objetivo desta fase é medir, não otimizar.
  */
-export const analyzePhoto = async (input: {
+export const extractFaceEmbedding = async (input: {
   photoUri: string;
   photoWidth: number;
   photoHeight: number;
   detector: FaceDetector;
   session: FaceNetSession;
-}): Promise<PipelineResult> => {
+}): Promise<FaceEmbeddingExtraction> => {
   const { photoUri, photoWidth, photoHeight, detector, session } = input;
-  const result = emptyResult();
+  const result = emptyExtraction();
   result.imageWidth = photoWidth;
   result.imageHeight = photoHeight;
-
-  const inicioTotal = Date.now();
 
   try {
     // 1. Detecção — sobre o arquivo salvo, o mesmo que será recortado.
@@ -97,7 +139,7 @@ export const analyzePhoto = async (input: {
     // registrado em `facesDetected`, sem virar erro, para o diagnóstico
     // distinguir "não achou ninguém" de "quebrou".
     if (faces.length === 0) {
-      result.timings = zeroTimings({ detectMs, totalMs: Date.now() - inicioTotal });
+      result.timings = zeroExtractionTimings({ detectMs });
       return result;
     }
 
@@ -165,23 +207,11 @@ export const analyzePhoto = async (input: {
 
     // 5. Inferência.
     const { embedding, inferenceMs } = await session.embed(tensor);
+    result.embedding = embedding;
     result.embeddingDim = embedding.length;
     result.embeddingNorm = l2Norm(embedding);
 
-    // 6. Comparação com a galeria.
-    const t5 = Date.now();
-    result.match = matchAgainstGallery(embedding, loadMockGallery());
-    const matchMs = Date.now() - t5;
-
-    result.timings = {
-      detectMs,
-      cropMs,
-      decodeMs,
-      tensorMs,
-      inferenceMs,
-      matchMs,
-      totalMs: Date.now() - inicioTotal,
-    };
+    result.timings = { detectMs, cropMs, decodeMs, tensorMs, inferenceMs };
   } catch (caught) {
     result.error = caught instanceof Error ? caught.message : String(caught);
   }
@@ -189,13 +219,60 @@ export const analyzePhoto = async (input: {
   return result;
 };
 
-const zeroTimings = (parcial: Partial<PipelineTimings>): PipelineTimings => ({
-  detectMs: 0,
-  cropMs: 0,
-  decodeMs: 0,
-  tensorMs: 0,
-  inferenceMs: 0,
-  matchMs: 0,
-  totalMs: 0,
-  ...parcial,
-});
+/**
+ * Wrapper compatível com o comportamento atual: extração → embedding →
+ * comparação com a galeria local → `PipelineResult`.
+ *
+ * Continua sendo o que `useAutoFaceRecognition` e o diagnóstico chamam;
+ * nada muda para eles. Nenhum limiar é ajustado aqui: a regra é aplicada
+ * tal como está e o resultado bruto vai inteiro para a tela.
+ */
+export const analyzePhoto = async (input: {
+  photoUri: string;
+  photoWidth: number;
+  photoHeight: number;
+  detector: FaceDetector;
+  session: FaceNetSession;
+}): Promise<PipelineResult> => {
+  const inicioTotal = Date.now();
+  const extraction = await extractFaceEmbedding(input);
+
+  const result: PipelineResult = {
+    facesDetected: extraction.facesDetected,
+    imageWidth: extraction.imageWidth,
+    imageHeight: extraction.imageHeight,
+    rawBox: extraction.rawBox,
+    cropBox: extraction.cropBox,
+    headEulerAngleX: extraction.headEulerAngleX,
+    headEulerAngleY: extraction.headEulerAngleY,
+    headEulerAngleZ: extraction.headEulerAngleZ,
+    trackingId: extraction.trackingId,
+    embeddingDim: extraction.embeddingDim,
+    embeddingNorm: extraction.embeddingNorm,
+    match: null,
+    timings: null,
+    cropPreviewUri: extraction.cropPreviewUri,
+    error: extraction.error,
+  };
+
+  const { embedding, timings: extractionTimings } = extraction;
+  if (extraction.error || !embedding || !extractionTimings) {
+    result.timings = extractionTimings
+      ? { ...extractionTimings, matchMs: 0, totalMs: Date.now() - inicioTotal }
+      : null;
+    return result;
+  }
+
+  try {
+    // 6. Comparação com a galeria.
+    const t5 = Date.now();
+    result.match = matchAgainstGallery(embedding, loadMockGallery());
+    const matchMs = Date.now() - t5;
+
+    result.timings = { ...extractionTimings, matchMs, totalMs: Date.now() - inicioTotal };
+  } catch (caught) {
+    result.error = caught instanceof Error ? caught.message : String(caught);
+  }
+
+  return result;
+};
