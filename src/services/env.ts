@@ -15,6 +15,10 @@ const readNumber = (value: string | undefined, fallback: number): number => {
 export const env = {
   epiApiUrl: readString(process.env.EXPO_PUBLIC_EPI_API_URL),
   epiApiTimeoutMs: readNumber(process.env.EXPO_PUBLIC_EPI_API_TIMEOUT_MS, 20000),
+  /** URL do backend de identificação facial. Não é segredo. */
+  faceApiUrl: readString(process.env.EXPO_PUBLIC_FACE_API_URL),
+  /** Ponto de acesso do tablet. String bruta — validação fica em `getFaceApiConfig`. */
+  facePointIdRaw: readString(process.env.EXPO_PUBLIC_FACE_POINT_ID),
 } as const;
 
 /** Enquanto a URL não for configurada, o app opera em modo simulado. */
