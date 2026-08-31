@@ -1,6 +1,8 @@
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { deviceTokenStore } from '@/features/face-recognition/services/deviceTokenStore';
+import { faceApiOverrideStore } from '@/features/face-recognition/services/faceApiOverrideStore';
 import ProvisionamentoTabletScreen from '@/app/provisionamento-tablet';
 
 jest.mock('expo-router', () => ({
@@ -15,11 +17,6 @@ jest.mock('@/features/face-recognition/services/deviceTokenStore', () => ({
   },
 }));
 
-jest.mock('@/features/face-recognition/services/faceApiConfig', () => ({
-  isFaceApiUrlConfigured: jest.fn(() => true),
-  isFacePointIdConfigured: jest.fn(() => true),
-}));
-
 const mockedGet = deviceTokenStore.get as jest.MockedFunction<typeof deviceTokenStore.get>;
 const mockedSet = deviceTokenStore.set as jest.MockedFunction<typeof deviceTokenStore.set>;
 const mockedRemove = deviceTokenStore.remove as jest.MockedFunction<typeof deviceTokenStore.remove>;
@@ -27,11 +24,12 @@ const mockedRemove = deviceTokenStore.remove as jest.MockedFunction<typeof devic
 /** Nunca um JWT real — só uma string de teste estruturalmente válida. */
 const FAKE_JWT = 'aaa.bbb.ccc';
 
-describe('ProvisionamentoTabletScreen', () => {
-  beforeEach(() => {
+describe('ProvisionamentoTabletScreen — token do dispositivo', () => {
+  beforeEach(async () => {
     mockedGet.mockReset();
     mockedSet.mockReset();
     mockedRemove.mockReset();
+    await AsyncStorage.clear();
   });
 
   it('mostra "Não provisionado" quando o store devolve null', async () => {
@@ -150,5 +148,101 @@ describe('ProvisionamentoTabletScreen', () => {
 
     logSpy.mockRestore();
     errorSpy.mockRestore();
+  });
+});
+
+describe('ProvisionamentoTabletScreen — configuração de URL/ponto (override local)', () => {
+  beforeEach(async () => {
+    mockedGet.mockReset();
+    mockedGet.mockResolvedValue(null);
+    await AsyncStorage.clear();
+  });
+
+  it('sem override e sem env: mostra "Não configurada" para API e Ponto', async () => {
+    const { findAllByText } = await render(<ProvisionamentoTabletScreen />);
+
+    expect((await findAllByText('Não configurada')).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('override salvo previamente é exibido ao abrir a tela', async () => {
+    await faceApiOverrideStore.set({ baseUrl: 'http://192.168.0.10:8000', pointId: 1 });
+
+    const { findByText } = await render(<ProvisionamentoTabletScreen />);
+
+    expect(await findByText(/192\.168\.0\.10:8000/)).toBeTruthy();
+  });
+
+  it('rejeita URL inválida e não grava o override', async () => {
+    const { findByText, getByPlaceholderText, getByText } = await render(<ProvisionamentoTabletScreen />);
+    await findByText('Não provisionado');
+
+    await act(async () => {
+      fireEvent.changeText(getByPlaceholderText('http://192.168.0.10:8000'), 'nao-e-uma-url');
+    });
+    await act(async () => {
+      fireEvent.changeText(getByPlaceholderText('ponto_id (ex.: 1)'), '1');
+    });
+    await act(async () => {
+      fireEvent.press(getByText('Salvar configuração'));
+    });
+
+    expect(await findByText(/URL inválida/)).toBeTruthy();
+    await expect(faceApiOverrideStore.get()).resolves.toBeNull();
+  });
+
+  it('rejeita ponto_id inválido e não grava o override', async () => {
+    const { findByText, getByPlaceholderText, getByText } = await render(<ProvisionamentoTabletScreen />);
+    await findByText('Não provisionado');
+
+    await act(async () => {
+      fireEvent.changeText(getByPlaceholderText('http://192.168.0.10:8000'), 'http://192.168.0.10:8000');
+    });
+    await act(async () => {
+      fireEvent.changeText(getByPlaceholderText('ponto_id (ex.: 1)'), 'zero');
+    });
+    await act(async () => {
+      fireEvent.press(getByText('Salvar configuração'));
+    });
+
+    expect(await findByText(/Ponto de acesso inválido/)).toBeTruthy();
+    await expect(faceApiOverrideStore.get()).resolves.toBeNull();
+  });
+
+  it('salva URL e ponto válidos e passa a exibi-los como "definida neste tablet"', async () => {
+    const { findByText, findAllByText, getByPlaceholderText, getByText } = await render(
+      <ProvisionamentoTabletScreen />,
+    );
+    await findByText('Não provisionado');
+
+    await act(async () => {
+      fireEvent.changeText(getByPlaceholderText('http://192.168.0.10:8000'), 'http://172.20.10.3:8000');
+    });
+    await act(async () => {
+      fireEvent.changeText(getByPlaceholderText('ponto_id (ex.: 1)'), '1');
+    });
+    await act(async () => {
+      fireEvent.press(getByText('Salvar configuração'));
+    });
+
+    expect(await findByText('Configuração salva neste tablet.')).toBeTruthy();
+    await expect(faceApiOverrideStore.get()).resolves.toEqual({
+      baseUrl: 'http://172.20.10.3:8000',
+      pointId: 1,
+    });
+    expect((await findAllByText(/definida neste tablet/)).length).toBe(2);
+  });
+
+  it('restaurar padrão remove o override', async () => {
+    await faceApiOverrideStore.set({ baseUrl: 'http://192.168.0.10:8000', pointId: 1 });
+
+    const { findByText, getByText } = await render(<ProvisionamentoTabletScreen />);
+    await findByText(/192\.168\.0\.10:8000/);
+
+    await act(async () => {
+      fireEvent.press(getByText('Restaurar padrão'));
+    });
+
+    expect(await findByText('Override removido — voltou ao padrão da build.')).toBeTruthy();
+    await expect(faceApiOverrideStore.get()).resolves.toBeNull();
   });
 });
