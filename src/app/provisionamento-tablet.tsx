@@ -111,8 +111,14 @@ export default function ProvisionamentoTabletScreen() {
       setTokenInput('');
       setTokenFeedback({ tone: 'success', message: 'Token salvo com sucesso.' });
       await refreshTokenStatus();
-    } catch {
-      setTokenFeedback({ tone: 'error', message: 'Não foi possível salvar o token.' });
+    } catch (error) {
+      // Mensagem do AppError já vem sanitizada (nunca inclui o token) — ver
+      // deviceTokenStore.ts. Exibir aqui é diagnóstico temporário para esta
+      // tela administrativa, não vaza para o fluxo do funcionário.
+      setTokenFeedback({
+        tone: 'error',
+        message: error instanceof Error ? error.message : 'Não foi possível salvar o token.',
+      });
     } finally {
       setSavingToken(false);
     }
@@ -125,8 +131,11 @@ export default function ProvisionamentoTabletScreen() {
       await deviceTokenStore.remove();
       setTokenFeedback({ tone: 'success', message: 'Token removido.' });
       await refreshTokenStatus();
-    } catch {
-      setTokenFeedback({ tone: 'error', message: 'Não foi possível remover o token.' });
+    } catch (error) {
+      setTokenFeedback({
+        tone: 'error',
+        message: error instanceof Error ? error.message : 'Não foi possível remover o token.',
+      });
     } finally {
       setSavingToken(false);
     }
