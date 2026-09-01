@@ -28,7 +28,19 @@ export type IdentifiedState = Extract<
 
 export type SessionEvent =
   | { type: 'FACE_SCANNING' }
-  | { type: 'FACE_RECOGNIZED'; employee: RecognizedEmployee; confidence: number }
+  | {
+      type: 'FACE_RECOGNIZED';
+      employee: RecognizedEmployee;
+      confidence: number;
+      /**
+       * Token de uso único do backend (`POST /api/v1/identificacao`),
+       * necessário para abrir a verificação de EPI depois. `null` quando a
+       * identificação veio de um caminho sem servidor (ex.: mock).
+       */
+      identificationId?: string | null;
+      /** ISO 8601 — quando `identificationId` deixa de ser válido no backend. */
+      identificationExpiresAt?: string | null;
+    }
   | { type: 'FACE_UNKNOWN'; confidence: number }
   | { type: 'EPI_PREPARATION' }
   | { type: 'EPI_STARTED'; requiredItems: EpiId[] }
@@ -45,6 +57,10 @@ export interface SessionSnapshot {
   state: SessionState;
   employee: RecognizedEmployee | null;
   faceConfidence: number | null;
+  /** Token de identificação de uso único do backend — ver `SessionEvent`. */
+  identificationId: string | null;
+  /** ISO 8601 — validade de `identificationId` no backend. */
+  identificationExpiresAt: string | null;
   /** Progresso da detecção de EPIs, entre 0 e 1. */
   progress: number;
   items: DetectedEpi[];

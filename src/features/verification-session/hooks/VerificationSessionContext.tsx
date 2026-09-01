@@ -23,11 +23,18 @@ interface VerificationSessionContextValue {
   startFaceRecognition: () => Promise<boolean>;
   /**
    * Registra alguém já identificado por um pipeline externo — hoje o
-   * reconhecimento facial local, no futuro o backend/pgvector — sem passar
-   * pelo `FaceRecognitionService` mock. O pipeline decide sozinho que a
-   * pessoa é quem diz ser; esta função só leva esse fato para a sessão.
+   * backend/pgvector (`POST /api/v1/identificacao`), antes o reconhecimento
+   * local — sem passar pelo `FaceRecognitionService` mock. O pipeline decide
+   * sozinho que a pessoa é quem diz ser; esta função só leva esse fato para
+   * a sessão. `identification` carrega o token de uso único do backend, para
+   * a futura etapa de verificação — omitido quando a origem não tem um
+   * (ex.: identificação sem servidor).
    */
-  identifyEmployee: (employee: RecognizedEmployee, confidence: number) => void;
+  identifyEmployee: (
+    employee: RecognizedEmployee,
+    confidence: number,
+    identification?: { id: string; expiresAt: string },
+  ) => void;
   /** Entra na preparação para EPI, preservando o funcionário identificado. */
   prepareEpiVerification: () => void;
   /** Verifica os equipamentos. Devolve o resultado, ou `null` se falhar. */
@@ -120,10 +127,23 @@ export const VerificationSessionProvider = ({ children }: { children: ReactNode 
    * de sucesso (`FACE_SCANNING` → `FACE_RECOGNIZED`), sem depender do serviço
    * mock nem de nenhuma chamada assíncrona: quem chama já tem o resultado.
    */
-  const identifyEmployee = useCallback((employee: RecognizedEmployee, confidence: number) => {
-    dispatch({ type: 'FACE_SCANNING' });
-    dispatch({ type: 'FACE_RECOGNIZED', employee, confidence });
-  }, []);
+  const identifyEmployee = useCallback(
+    (
+      employee: RecognizedEmployee,
+      confidence: number,
+      identification?: { id: string; expiresAt: string },
+    ) => {
+      dispatch({ type: 'FACE_SCANNING' });
+      dispatch({
+        type: 'FACE_RECOGNIZED',
+        employee,
+        confidence,
+        identificationId: identification?.id ?? null,
+        identificationExpiresAt: identification?.expiresAt ?? null,
+      });
+    },
+    [],
+  );
 
   const startEpiVerification = useCallback(
     async (requiredItems: EpiId[]): Promise<EpiDetectionResult | null> => {

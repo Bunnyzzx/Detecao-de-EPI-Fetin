@@ -77,10 +77,21 @@ export const APP_MESSAGES = {
     /** Versão curta, para a tela operacional — legível de relance. */
     unknownShortHint: 'Olhe diretamente para a câmera e tente novamente.',
     unknownShortChecks: ['Centralize o rosto', 'Evite sombras fortes', 'Mantenha distância adequada'],
+    /** Resultado AMBIGUO do servidor: mais de um cadastro ficou próximo demais para decidir. */
+    ambiguousTitle: 'Não foi possível confirmar com segurança',
+    ambiguousHint: 'Mais de um cadastro correspondeu ao rosto. Centralize bem o rosto e tente novamente.',
+    /** Resultado SEM_CONSENTIMENTO: a pessoa bateria o limiar, mas sem consentimento vigente. */
+    noConsentTitle: 'Biometria indisponível para este cadastro',
+    noConsentHint: 'Procure o responsável administrativo — o consentimento biométrico não está vigente.',
     retryButton: 'Tentar Novamente',
     backHomeButton: 'Voltar ao Início',
     errorTitle: 'Falha na identificação',
     errorDescription: 'Não foi possível concluir a identificação. Tente novamente.',
+    /** Erros administrativos/operacionais — nunca detalhe técnico para o funcionário. */
+    configMissingDescription:
+      'O aplicativo não está configurado para falar com o servidor. Procure o responsável pela configuração do tablet.',
+    tokenMissingDescription:
+      'Este tablet ainda não foi autorizado pelo servidor. Procure o responsável administrativo.',
     noFaceTitle: 'Nenhum rosto detectado',
     identifiedTitle: 'Usuário identificado',
     identifiedAdvancing: 'Preparando próxima etapa...',

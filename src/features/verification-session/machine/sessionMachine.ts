@@ -25,6 +25,8 @@ export const createInitialSnapshot = (): SessionSnapshot => ({
   state: 'idle',
   employee: null,
   faceConfidence: null,
+  identificationId: null,
+  identificationExpiresAt: null,
   progress: 0,
   items: [],
   currentItem: null,
@@ -63,6 +65,8 @@ export const sessionReducer = (
             state: 'face_recognized',
             employee: event.employee,
             faceConfidence: event.confidence,
+            identificationId: event.identificationId ?? null,
+            identificationExpiresAt: event.identificationExpiresAt ?? null,
           }
         : snapshot;
 

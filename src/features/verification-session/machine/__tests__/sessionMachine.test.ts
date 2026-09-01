@@ -73,6 +73,52 @@ describe('sessionMachine — transições válidas', () => {
     expect(snapshot.faceConfidence).toBeCloseTo(0.94);
   });
 
+  it('FACE_RECOGNIZED guarda identificationId/identificationExpiresAt do backend', () => {
+    const snapshot = run(
+      { type: 'FACE_SCANNING' },
+      {
+        type: 'FACE_RECOGNIZED',
+        employee: EMPLOYEE,
+        confidence: 0.94,
+        identificationId: 'ident-abc-123',
+        identificationExpiresAt: '2026-01-01T00:01:00Z',
+      },
+    );
+
+    expect(snapshot.identificationId).toBe('ident-abc-123');
+    expect(snapshot.identificationExpiresAt).toBe('2026-01-01T00:01:00Z');
+  });
+
+  it('FACE_RECOGNIZED sem identificationId/expiresAt mantém os campos null', () => {
+    // Compatibilidade com uma origem que identifica sem token de servidor
+    // (ex.: um caminho local/mock) — o campo é opcional no evento.
+    const snapshot = run(...IDENTIFY);
+
+    expect(snapshot.identificationId).toBeNull();
+    expect(snapshot.identificationExpiresAt).toBeNull();
+  });
+
+  it('uma sessão reiniciada (RESET) não herda identificationId/expiresAt da tentativa anterior', () => {
+    const primeira = run(
+      { type: 'FACE_SCANNING' },
+      {
+        type: 'FACE_RECOGNIZED',
+        employee: EMPLOYEE,
+        confidence: 0.94,
+        identificationId: 'ident-abc-123',
+        identificationExpiresAt: '2026-01-01T00:01:00Z',
+      },
+    );
+
+    const reiniciada = [{ type: 'RESET' } as const, { type: 'FACE_SCANNING' } as const].reduce(
+      sessionReducer,
+      primeira,
+    );
+
+    expect(reiniciada.identificationId).toBeNull();
+    expect(reiniciada.identificationExpiresAt).toBeNull();
+  });
+
   it('FACE_UNKNOWN mantém a sessão sem funcionário', () => {
     const snapshot = run({ type: 'FACE_SCANNING' }, { type: 'FACE_UNKNOWN', confidence: 0.3 });
 

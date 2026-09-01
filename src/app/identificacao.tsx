@@ -13,15 +13,26 @@ import { useVerificationSession } from '@/features/verification-session/hooks/Ve
 import { useHaptics } from '@/hooks/useHaptics';
 import { useTerminalMetrics } from '@/hooks/useTerminalMetrics';
 import { colors, radii, spacing } from '@/theme';
-import { clampUnit } from '@/utils';
 
 /**
  * Desfecho visual de uma tentativa.
  *
  * Cada tentativa é uma captura só: o resultado fica na tela até o funcionário
  * pedir uma nova, sair, ou — só no caso de sucesso — até o avanço automático.
+ * `not-identified`/`ambiguous`/`no-consent` são os três resultados de domínio
+ * do servidor que não avançam; `error` cobre tanto falha técnica (câmera,
+ * FaceNet, rede) quanto falta de configuração/provisionamento do tablet —
+ * nenhum dos dois é "rosto não corresponde a ninguém".
  */
-type FaceOutcome = 'idle' | 'waiting' | 'no-face' | 'identified' | 'not-identified' | 'error';
+type FaceOutcome =
+  | 'idle'
+  | 'waiting'
+  | 'no-face'
+  | 'identified'
+  | 'not-identified'
+  | 'ambiguous'
+  | 'no-consent'
+  | 'error';
 
 /**
  * Tempo que o cartão de sucesso fica visível antes de avançar sozinho.
@@ -30,6 +41,23 @@ type FaceOutcome = 'idle' | 'waiting' | 'no-face' | 'identified' | 'not-identifi
  * sem rosto, erro) exigem uma ação explícita, sem temporizador nenhum.
  */
 const IDENTIFICATION_SUCCESS_DELAY_MS = 5000;
+
+/** Título/dica dos três desfechos "vermelhos" que compartilham o mesmo cartão. */
+const RED_CARD_COPY: Record<'not-identified' | 'ambiguous' | 'no-consent', { title: string; hint: string; checks?: readonly string[] }> = {
+  'not-identified': {
+    title: APP_MESSAGES.face.unknownTitle,
+    hint: APP_MESSAGES.face.unknownShortHint,
+    checks: APP_MESSAGES.face.unknownShortChecks,
+  },
+  ambiguous: {
+    title: APP_MESSAGES.face.ambiguousTitle,
+    hint: APP_MESSAGES.face.ambiguousHint,
+  },
+  'no-consent': {
+    title: APP_MESSAGES.face.noConsentTitle,
+    hint: APP_MESSAGES.face.noConsentHint,
+  },
+};
 
 export default function IdentificationScreen() {
   const router = useRouter();
@@ -44,30 +72,39 @@ export default function IdentificationScreen() {
   const isPreparing = status === 'preparando';
   const isRunning = status === 'analisando';
   const setupFailed = status === 'erro';
-  const hasPipelineError = result?.error != null;
 
-  // O pipeline só chega com `facesDetected > 0` e sem erro depois de calcular
-  // o embedding e comparar com a galeria: `match` sempre existe nesse ponto.
   const outcome: FaceOutcome = setupFailed
     ? 'error'
     : isRunning
       ? 'waiting'
       : result === null
         ? 'idle'
-        : hasPipelineError
-          ? 'error'
-          : result.facesDetected === 0
-            ? 'no-face'
-            : result.match?.passes
-              ? 'identified'
-              : 'not-identified';
+        : result.kind === 'no_face'
+          ? 'no-face'
+          : result.kind === 'identified'
+            ? 'identified'
+            : result.kind === 'nao_identificado'
+              ? 'not-identified'
+              : result.kind === 'ambiguo'
+                ? 'ambiguous'
+                : result.kind === 'sem_consentimento'
+                  ? 'no-consent'
+                  : 'error'; // config_missing | token_missing | technical_error
 
   const isIdentified = outcome === 'identified';
-  // As três só param à espera de uma nova tentativa explícita.
-  const needsRetry =
-    outcome === 'no-face' || outcome === 'not-identified' || outcome === 'error';
-  const showsHeroCard = isIdentified || outcome === 'not-identified';
+  const isRedCard =
+    outcome === 'not-identified' || outcome === 'ambiguous' || outcome === 'no-consent';
+  // As quatro só param à espera de uma nova tentativa explícita.
+  const needsRetry = outcome === 'no-face' || isRedCard || outcome === 'error';
+  const showsHeroCard = isIdentified || isRedCard;
   const showsGuidanceCard = outcome === 'error';
+
+  const errorDescription =
+    result?.kind === 'config_missing'
+      ? APP_MESSAGES.face.configMissingDescription
+      : result?.kind === 'token_missing'
+        ? APP_MESSAGES.face.tokenMissingDescription
+        : APP_MESSAGES.face.errorDescription;
 
   const attempt = useCallback(() => {
     impact();
@@ -81,18 +118,23 @@ export default function IdentificationScreen() {
   }, [cancel, reset, router]);
 
   /**
-   * Ponte entre o pipeline real e a sessão: assim que alguém é identificado,
-   * registra a pessoa (só com os dados que a galeria realmente tem) e agenda
-   * o avanço. O cleanup cobre tanto o desmonte quanto o "Voltar ao Início" —
-   * os dois desmontam esta tela, então o mesmo `clearTimeout` resolve ambos.
+   * Ponte entre o pipeline real e a sessão: assim que o servidor identifica
+   * alguém, registra a pessoa — com o `identificacao_id`/`expira_em` que a
+   * futura etapa de verificação vai precisar — e agenda o avanço. O cleanup
+   * cobre tanto o desmonte quanto o "Voltar ao Início" — os dois desmontam
+   * esta tela, então o mesmo `clearTimeout` resolve ambos.
    */
   useEffect(() => {
-    const best = result?.match?.best;
-    if (!isIdentified || !best) {
+    if (!isIdentified || result?.kind !== 'identified') {
       return;
     }
+    const identified = result;
 
-    identifyEmployee({ id: String(best.id), nome: best.nome }, clampUnit(1 - best.distance));
+    identifyEmployee(
+      { id: String(identified.pessoaId), nome: identified.nome },
+      1,
+      { id: identified.identificacaoId, expiresAt: identified.expiraEm },
+    );
 
     const timer = setTimeout(() => {
       router.replace('/preparacao');
@@ -117,7 +159,7 @@ export default function IdentificationScreen() {
           style={showsHeroCard || showsGuidanceCard ? styles.viewportCompact : styles.viewport}
         />
 
-        {isIdentified ? (
+        {isIdentified && result?.kind === 'identified' ? (
           <View style={styles.identifiedCard}>
             <View style={[styles.badge, { backgroundColor: colors.white }]}>
               <MaterialCommunityIcons
@@ -130,13 +172,13 @@ export default function IdentificationScreen() {
               {APP_MESSAGES.face.identifiedTitle}
             </Text>
             <Text variant={metrics.employeeName} color={colors.white} align="center">
-              {result?.match?.best?.nome ?? '—'}
+              {result.nome}
             </Text>
             <Text variant={metrics.instructionDetail} color={colors.slate[100]} align="center">
               {APP_MESSAGES.face.identifiedAdvancing}
             </Text>
           </View>
-        ) : outcome === 'not-identified' ? (
+        ) : isRedCard ? (
           <View style={styles.notIdentifiedCard}>
             <View style={[styles.badge, { backgroundColor: colors.white }]}>
               <MaterialCommunityIcons
@@ -146,21 +188,25 @@ export default function IdentificationScreen() {
               />
             </View>
             <Text variant={metrics.employeeMeta} color={colors.white} align="center">
-              {APP_MESSAGES.face.unknownTitle}
+              {RED_CARD_COPY[outcome as 'not-identified' | 'ambiguous' | 'no-consent'].title}
             </Text>
             <Text variant={metrics.instructionDetail} color={colors.slate[100]} align="center">
-              {APP_MESSAGES.face.unknownShortHint}
+              {RED_CARD_COPY[outcome as 'not-identified' | 'ambiguous' | 'no-consent'].hint}
             </Text>
-            <View style={styles.checks}>
-              {APP_MESSAGES.face.unknownShortChecks.map((check) => (
-                <View key={check} style={styles.checkRow}>
-                  <MaterialCommunityIcons name="circle-medium" size={20} color={colors.white} />
-                  <Text variant="body" color={colors.slate[100]} style={styles.checkText}>
-                    {check}
-                  </Text>
-                </View>
-              ))}
-            </View>
+            {RED_CARD_COPY[outcome as 'not-identified' | 'ambiguous' | 'no-consent'].checks ? (
+              <View style={styles.checks}>
+                {RED_CARD_COPY[
+                  outcome as 'not-identified' | 'ambiguous' | 'no-consent'
+                ].checks?.map((check) => (
+                  <View key={check} style={styles.checkRow}>
+                    <MaterialCommunityIcons name="circle-medium" size={20} color={colors.white} />
+                    <Text variant="body" color={colors.slate[100]} style={styles.checkText}>
+                      {check}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
           </View>
         ) : showsGuidanceCard ? (
           <View style={styles.guidance}>
@@ -173,7 +219,7 @@ export default function IdentificationScreen() {
               {APP_MESSAGES.face.errorTitle}
             </Text>
             <Text variant={metrics.instructionDetail} color={colors.slate[300]} align="center">
-              {APP_MESSAGES.face.errorDescription}
+              {errorDescription}
             </Text>
           </View>
         ) : (
